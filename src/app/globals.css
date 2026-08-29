@@ -1,0 +1,249 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------------------
+   ADEBES — Design tokens
+   Palette dérivée du logo : ruban bleu, ruban vert, silhouette orange,
+   texte de marque bleu marine.
+   Les teintes « brand » sont les couleurs du logo telles quelles (usage
+   décoratif / fonds sombres) ; les teintes « ink » sont leurs versions
+   assombries, seules autorisées derrière du texte blanc (contraste AA ≥ 4.5:1).
+--------------------------------------------------------------------------- */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --font-sans: var(--font-inter);
+  --font-heading: var(--font-sora);
+  --font-mono: var(--font-mono-stack);
+
+  /* Couleurs de marque (valeurs fixes, identiques dans les deux thèmes) */
+  --color-brand-navy: #0f2d52;
+  --color-brand-blue: #2e8bc0;
+  --color-brand-blue-ink: #1b6fa8; /* 5.30:1 sur blanc */
+  --color-brand-green: #4caf50;
+  --color-brand-green-ink: #2e7d32; /* 5.13:1 sur blanc */
+  --color-brand-orange: #f2994a;
+  --color-brand-orange-ink: #a8560c; /* 5.05:1 sur blanc */
+  --color-whatsapp: #25d366;
+  --color-whatsapp-ink: #128c7e; /* 4.55:1 sur blanc */
+
+  /* Tokens sémantiques (pilotés par le thème) */
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* --- Thème clair ---------------------------------------------------------- */
+:root {
+  --background: #fafafa;
+  --foreground: #0f2d52; /* navy sur blanc cassé : 13.3:1 */
+
+  --card: #ffffff;
+  --card-foreground: #0f2d52;
+  --popover: #ffffff;
+  --popover-foreground: #0f2d52;
+
+  --primary: #1b6fa8; /* bleu ADEBES assombri — blanc dessus : 5.30:1 */
+  --primary-foreground: #ffffff;
+
+  --secondary: #eaf1f7;
+  --secondary-foreground: #0f2d52;
+
+  --muted: #eef2f6;
+  --muted-foreground: #55708f; /* 4.93:1 sur --background */
+
+  --accent: #e8f4ec;
+  --accent-foreground: #1f5b23;
+
+  --success: #2e7d32;
+  --success-foreground: #ffffff;
+
+  --destructive: #b3261e; /* 6.4:1 sur blanc */
+
+  --border: #d9e2ec;
+  --input: #cbd6e2;
+  --ring: #1b6fa8;
+
+  --chart-1: #1b6fa8;
+  --chart-2: #2e7d32;
+  --chart-3: #2e8bc0;
+  --chart-4: #f2994a;
+  --chart-5: #0f2d52;
+
+  --radius: 0.75rem;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f2d52;
+  --sidebar-primary: #1b6fa8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eaf1f7;
+  --sidebar-accent-foreground: #0f2d52;
+  --sidebar-border: #d9e2ec;
+  --sidebar-ring: #1b6fa8;
+}
+
+/* --- Thème sombre : bleu nuit, jamais de noir pur ------------------------- */
+.dark {
+  --background: #0b1b2b;
+  --foreground: #e8eef4; /* 15.6:1 sur --background */
+
+  --card: #12293d;
+  --card-foreground: #e8eef4;
+  --popover: #12293d;
+  --popover-foreground: #e8eef4;
+
+  --primary: #5cb4e6; /* clair sur fond sombre — texte navy dessus */
+  --primary-foreground: #06121e;
+
+  --secondary: #1a3a52;
+  --secondary-foreground: #e8eef4;
+
+  --muted: #16324a;
+  --muted-foreground: #9fb3c6; /* 8.07:1 sur --background */
+
+  --accent: #17402a;
+  --accent-foreground: #b7e9c0;
+
+  --success: #6cc76f;
+  --success-foreground: #06121e;
+
+  --destructive: #ff6b60;
+
+  --border: color-mix(in oklab, #e8eef4 14%, transparent);
+  --input: color-mix(in oklab, #e8eef4 20%, transparent);
+  --ring: #5cb4e6;
+
+  --chart-1: #5cb4e6;
+  --chart-2: #6cc76f;
+  --chart-3: #2e8bc0;
+  --chart-4: #f2994a;
+  --chart-5: #b7cfe4;
+
+  --sidebar: #12293d;
+  --sidebar-foreground: #e8eef4;
+  --sidebar-primary: #5cb4e6;
+  --sidebar-primary-foreground: #06121e;
+  --sidebar-accent: #16324a;
+  --sidebar-accent-foreground: #e8eef4;
+  --sidebar-border: color-mix(in oklab, #e8eef4 14%, transparent);
+  --sidebar-ring: #5cb4e6;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply font-sans;
+    --font-mono-stack: ui-monospace, SFMono-Regular, Menlo, monospace;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading tracking-tight;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Focus visible homogène et toujours perceptible (WCAG 2.4.7). */
+  :focus-visible {
+    @apply outline-ring outline-2 outline-offset-2;
+  }
+
+  /* Ancres : compense le header sticky lors d'une navigation vers #id. */
+  [id] {
+    scroll-margin-top: 6rem;
+  }
+}
+
+@layer utilities {
+  /* Scrim obligatoire derrière tout texte posé sur une photo (section 10). */
+  .scrim {
+    background-image: linear-gradient(
+      to top,
+      rgb(6 18 30 / 0.88) 0%,
+      rgb(6 18 30 / 0.62) 45%,
+      rgb(6 18 30 / 0.25) 100%
+    );
+  }
+
+  .scrim-soft {
+    background-image: linear-gradient(
+      to top,
+      rgb(6 18 30 / 0.7) 0%,
+      rgb(6 18 30 / 0.35) 60%,
+      rgb(6 18 30 / 0.1) 100%
+    );
+  }
+
+  /* Réservé à la StickyMobileActionBar : évite de masquer le bas du contenu. */
+  .pb-action-bar {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* Section 9 : respecter prefers-reduced-motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
