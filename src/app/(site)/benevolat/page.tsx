@@ -16,8 +16,9 @@ import { FAQAccordion } from "@/components/ui-ext/faq-accordion";
 import { ContentIcon } from "@/components/ui-ext/content-icon";
 import { Reveal } from "@/components/ui-ext/reveal";
 import { SectionHeading } from "@/components/ui-ext/section-heading";
-import { faqByTopic } from "@/content/faq";
+import { texteReponse } from "@/core/cms/entities/faq-item";
 import { contact, whatsappLink, whatsappMessages } from "@/lib/site-config";
+import { getFaqParSujet } from "@/server/queries/faq.query";
 import {
   getLibellesBenevolat,
   getProgrammesPublies,
@@ -35,8 +36,6 @@ export const metadata: Metadata = {
     url: "/benevolat",
   },
 };
-
-const faqBenevolat = faqByTopic("benevolat");
 
 /**
  * ⚠️  `force-dynamic` — TRANSITOIRE, À RETIRER AU LOT 15.
@@ -56,6 +55,16 @@ export default async function BenevolatPage() {
   const programmes = await getProgrammesPublies();
   const domaines = await getLibellesBenevolat();
 
+  /*
+    Les questions du sujet « Bénévolat » viennent de la base au Lot 8F.
+
+    ⚠️  C'est le seul sujet qui n'apparaît JAMAIS sur l'accueil : la règle
+    d'origine de la page d'accueil excluait explicitement `benevolat`, et elle
+    est conservée telle quelle (`estAffichableSurAccueil`, dans le domaine).
+    Cette page est donc la seule où ces questions se lisent.
+  */
+  const faqBenevolat = await getFaqParSujet("benevolat");
+
   return (
     <>
       <JsonLd
@@ -64,11 +73,22 @@ export default async function BenevolatPage() {
           { label: "Devenir bénévole", href: "/benevolat" },
         ])}
       />
-      <JsonLd
-        data={faqJsonLd(
-          faqBenevolat.map(({ question, answer }) => ({ question, answer })),
-        )}
-      />
+
+      {/*
+        ⚠️  `texteReponse` compose le paragraphe ET les puces — voir l'entité
+        `FaqItem`. Et aucun balisage n'est émis si la liste est vide : un
+        `FAQPage` sans `mainEntity` est une déclaration fausse.
+      */}
+      {faqBenevolat.length > 0 ? (
+        <JsonLd
+          data={faqJsonLd(
+            faqBenevolat.map((item) => ({
+              question: item.question,
+              answer: texteReponse(item),
+            })),
+          )}
+        />
+      ) : null}
 
       <PageHero
         eyebrow="Bénévolat"
@@ -222,22 +242,32 @@ export default async function BenevolatPage() {
         </Container>
       </section>
 
-      {/* --- FAQ bénévolat --- */}
-      <section className="py-14 lg:py-20">
-        <Container size="narrow">
-          <Reveal>
-            <SectionHeading
-              badge="Questions fréquentes"
-              title="Avant de vous lancer"
-              align="center"
-            />
-          </Reveal>
+      {/*
+        --- FAQ bénévolat ---
 
-          <Reveal delay={0.1}>
-            <FAQAccordion items={faqBenevolat} className="mt-8" />
-          </Reveal>
-        </Container>
-      </section>
+        La section entière disparaît s'il n'y a aucune question publiée sur ce
+        sujet. Même règle que sur les deux autres pages.
+
+        ⚠️  `id="faq"` : l'ancre visée par « Voir sur le site » depuis la fiche
+        du dashboard.
+      */}
+      {faqBenevolat.length > 0 ? (
+        <section id="faq" className="py-14 lg:py-20">
+          <Container size="narrow">
+            <Reveal>
+              <SectionHeading
+                badge="Questions fréquentes"
+                title="Avant de vous lancer"
+                align="center"
+              />
+            </Reveal>
+
+            <Reveal delay={0.1}>
+              <FAQAccordion items={faqBenevolat} className="mt-8" />
+            </Reveal>
+          </Container>
+        </section>
+      ) : null}
     </>
   );
 }

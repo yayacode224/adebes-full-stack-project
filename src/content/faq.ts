@@ -10,6 +10,27 @@ export type FaqItem = {
 };
 
 /**
+ * ═══════════════════════════════════════════════════════════════════════════
+ *  ⚠️  CE FICHIER N'EST PLUS IMPORTÉ PAR AUCUNE PAGE NI AUCUN COMPOSANT
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Depuis le Lot 8F, les questions fréquentes vivent en base (`faq_items`) et se
+ * gèrent depuis `/dashboard/faq`. Les trois pages qui les affichaient —
+ * l'accueil, « Faire un don » et « Devenir bénévole » — lisent désormais
+ * `src/server/queries/faq.query.ts`, et `<FAQAccordion>` reçoit l'entité de
+ * domaine `FaqItem` de `src/core/cms/entities/faq-item.ts`.
+ *
+ * Le fichier est CONSERVÉ jusqu'au Lot 16, comme `programmes.ts`,
+ * `actualites.ts`, `temoignages.ts` et `valeurs.ts` : c'est la référence qui
+ * permet de vérifier que la migration n'a rien perdu. Les sept lignes de la
+ * base doivent lui correspondre mot pour mot, aux valeurs interpolées près
+ * (téléphone, e-mail, numéro d'enregistrement) que le seed du Lot 1 a
+ * matérialisées.
+ *
+ * ⚠️  NE PAS le modifier pour corriger une question : la source de vérité est
+ * la base. Une correction faite ici ne s'afficherait nulle part.
+ *
+ * ---------------------------------------------------------------------------
  * FAQ reprise de l'ancien site et enrichie.
  *
  * La réponse « Comment faire un don » ne mentionne plus WhatsApp comme unique

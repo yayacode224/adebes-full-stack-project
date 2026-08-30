@@ -49,7 +49,7 @@ mémoire sur leur contenu.
 
 ---
 
-## État au terme du Lot 8C
+## État au terme du Lot 8F
 
 ### Lots livrés et recettés
 
@@ -66,6 +66,9 @@ mémoire sur leur contenu.
 | 8A | Programmes de bout en bout : deps, 5 actions, requêtes publiques, 3 écrans, bascule du site | ✅ 59 tests purs + 50 HTTP + 78 parcours navigateur + 61 mesures responsive = **248, 0 échec** |
 | 8B | Actualités de bout en bout : domaine, catégories gérables, champ `date`, 4 + 4 actions, 3 écrans, bascule du site | ✅ 119 tests purs + 57 sur base réelle + 69 HTTP + 67 parcours navigateur + 77 mesures responsive = **389, 0 échec** |
 | 8C | Témoignages de bout en bout : domaine, **règle de consentement appliquée dans le domaine**, 5 actions, 3 écrans, bascule de l'accueil | ✅ 174 tests purs + 78 sur base réelle + 92 HTTP + 69 parcours navigateur + 85 mesures responsive = **498, 0 échec** |
+| 8D | Équipe de bout en bout : domaine, **garde sur le marqueur « [À COMPLÉTER] » à la publication**, 5 actions, 3 écrans, bascule de `/a-propos` | ✅ 207 tests purs + 69 sur base réelle + 51 HTTP + 102 parcours navigateur + 104 mesures responsive = **533, 0 échec** |
+| 8E | Valeurs de bout en bout : **première collection sans cycle éditorial** (`is_visible`), **liste des icônes descendue dans le domaine** → `icon` enfin validé par énumération, 5 actions, 3 écrans, bascule de **deux** pages publiques | ✅ 285 tests purs + 75 sur base réelle + 75 HTTP + 95 parcours navigateur + 101 mesures responsive = **631, 0 échec** |
+| 8F | Questions fréquentes de bout en bout : **premier lot dont la bascule touche des données STRUCTURÉES** (JSON-LD `FAQPage`), `topic` qui décide de la page, `bullets[]` facultatives, 5 actions, 3 écrans, bascule de **trois** pages publiques | ✅ 118 tests purs + 59 sur base réelle + 74 HTTP + 57 parcours navigateur + 68 mesures responsive = **376, 0 échec** |
 
 ### Environnement (déjà configuré, ne pas refaire)
 
@@ -83,10 +86,24 @@ mémoire sur leur contenu.
   4 chiffres (`beneficiaires` à `NULL`), 3 témoignages, 3 fiches d'équipe en
   brouillon, 12 pages, 30 sections squelettes, 12 entrées de navigation,
   7 groupes de réglages, 2 rapports annuels en brouillon.
-- **`media_assets` est VIDE**, et les deux buckets aussi. Le seed n'a jamais
-  créé de média (aucun fichier éditorial n'existe encore), et la recette du
-  Lot 7 supprime tout ce qu'elle dépose. Le premier fichier réel sera téléversé
-  par l'utilisateur depuis `/dashboard/mediatheque`.
+- **`media_assets` contient 1 média** depuis le Lot 8C : l'utilisateur a
+  téléversé son premier fichier réel depuis `/dashboard/mediatheque`. Les
+  recettes ne le touchent pas et n'en créent aucun. (Avant cela la table était
+  vide, ainsi que les deux buckets.)
+- **`audit_logs` : 117 entrées — INCHANGÉ depuis le Lot 8E.** La recette du Lot
+  8F a purgé les siennes en fin d'exécution, par `actor_id` (découverte nº 21),
+  et le contrôle final mesure **0 entrée `faq_item.*`** en base. C'est le
+  premier lot du Lot 8 à ne rien laisser derrière lui, et c'est la conduite à
+  reprendre.
+  Rappel du détail antérieur, à purger au Lot 13 : 16 entrées appartiennent au
+  compte de l'utilisateur, 53 sont les `team_member.*` du Lot 8D, 12 les
+  `core_value.*` du Lot 8E, 17 les résidus du Lot 7.
+- **`rate_limits` contient 4 lignes**, dont deux portant une **vraie adresse IP**
+  (`connexion:196.117.202.164`, `mot-de-passe-oublie:196.117.202.164`) : ce sont
+  les compteurs de l'utilisateur, **jamais touchés par les recettes**. Les deux
+  autres (`televersement:::ffff:127.0.0.1`, `televersement:::1`) sont des restes
+  de boucle locale d'un banc antérieur. Une recette ne remet à zéro que les clés
+  `connexion:` de la boucle locale, et rien d'autre (découverte nº 38).
 
 ### Méthode de recette qui a fait ses preuves
 
@@ -132,6 +149,38 @@ Aucun harnais de test n'est installé (proposé, non retenu). Procédé employé
   avant son `finally` en laisse un derrière lui. Contrôle :
   `select id, email, role from profiles` — il ne doit rester **que** le super
   administrateur de l'utilisateur.
+- **Vérifier l'espace disque AVANT de commencer** (découverte nº 35) et **le
+  port AVANT de lancer `next start`** (découverte nº 34). Les deux ont coûté du
+  temps au Lot 8C, et aucun des deux ne ressemble à ce qu'il est.
+- **Attendre une condition, jamais une durée** (découverte nº 33) : une pause
+  calibrée sur une exécution réussie échoue sur la suivante.
+- **Et vérifier que l'action a PRIS** (découverte nº 37) : une valeur saisie
+  avant l'hydratation de React est effacée sans bruit. Relire le champ, et
+  recommencer tant que la valeur n'a pas tenu.
+- **Un rôle, un contexte de navigation** (découverte nº 36) : deux onglets d'un
+  même profil Chrome partagent leurs cookies. `Target.createBrowserContext`
+  avant toute seconde session.
+- **Purger à l'ENTRÉE, pas seulement à la sortie** (découverte nº 40) : une
+  exécution interrompue lègue ses lignes et ses comptes à la suivante, qui les
+  prend pour l'état initial. Et déduire les comptes attendus de l'état mesuré,
+  jamais d'un nombre écrit en dur.
+- **Remettre à zéro le compteur `connexion` de la boucle locale**
+  (découverte nº 38) : 5 tentatives par quart d'heure, et une suite à deux
+  sessions atteint la limite au troisième passage. Jamais les clés d'une
+  adresse réelle.
+- **Dimensionner la fenêtre AVANT de chercher une ligne de tableau**
+  (découverte nº 41) : Chrome headless démarre en 800 × 600, et le
+  `<DataTable>` rend des CARTES sous 1024 px. `tbody tr` n'y trouve rien, et
+  l'échec ressemble à « les données ne sont pas arrivées ».
+- **Attendre les LIGNES, pas le titre de la page** : le `<DataTable>` rend un
+  squelette côté serveur ; `innerText` lu trop tôt ne contient aucune donnée.
+- **Borner présence et ordre à la SECTION mesurée** (découvertes nº 42 et 43) :
+  un titre de contenu est souvent un mot courant, et `indexOf` sur une page
+  entière trouve la mauvaise occurrence. Une mesure de périmètre qui déborde de
+  son périmètre impute à un lot les défauts de ses prédécesseurs.
+- **Corriger l'assertion quand elle mesure la mauvaise chose ; corriger le CODE
+  quand elle mesure la bonne** (découverte nº 44). Ne jamais assouplir une règle
+  pour excuser ce qu'on vient d'écrire.
 
 ---
 
@@ -250,6 +299,54 @@ Chacun est documenté dans le code concerné.
 | 88 | **`kind: "reference"` rejoint `CHAMPS_PLEINE_LARGEUR`** | Le §6.2 énumère « textarea, richtext, list » ; `media` avait rejoint la liste au Lot 6. `reference` manquait, et cela ne s'était pas vu : **aucun écran livré n'en portait avant les témoignages**. Ce n'est pas une entrée d'une ligne mais un champ de recherche suivi d'une liste défilante de 224 px ; sur une demi-colonne, « Développement communautaire » et « Autonomisation des femmes » sont tronqués un par un. |
 | 89 | **`src/server/dal/programme-options.ts`** | Deux écrans du Lot 8C ont besoin de la même liste, et les Lots 8D et 9 en auront d'autres. Les brouillons y sont proposés — `programme_id` n'exige pas un programme publié — mais **leur état est écrit** dans le `detail` : choisir « Santé mentale » sans savoir qu'il n'est pas en ligne serait trompeur. Une lecture en échec renvoie `[]` et non `undefined` : l'écran FOURNIT bien la ressource, et l'édition d'un témoignage ne doit pas tomber parce que la liste des programmes n'a pas pu être lue. |
 | 90 | **Messages français jusque sur les erreurs de TYPE** | Trouvé par la recette (A44), pas déduit : `z.string().min(20, "…")` ne couvre que l'erreur de LONGUEUR. Sur un champ **absent** — ce qu'un POST direct produit — Zod s'arrête à l'erreur de type et rend « Invalid input: expected string, received undefined », en anglais, affiché tel quel. Chaque champ de `testimonial.schema.ts` porte donc son message deux fois, `z.string("…")` **et** `.min(n, "…")`. ⚠️ **Le même trou existe dans `programme.schema.ts` et `article.schema.ts`** (Lots 8A et 8B) : le remède est identique et tient en une chaîne par champ, mais il n'a pas été appliqué ici — ces deux lots ont été recettés en l'état, et les corriger sans rejouer leurs recettes n'aurait rien prouvé. **À traiter au Lot 16.** |
+
+### Écarts du Lot 8D
+
+| # | Écart | Raison |
+|---|---|---|
+| 91 | **La garde du lot porte sur le MARQUEUR, pas sur un champ vide** | Le seed a écrit `name = '[À COMPLÉTER]'` dans les trois lignes de `team_members` — la valeur de `TODO` (`site-config.ts`), reprise telle quelle du tableau TypeScript où « aucun nom n'est inventé ». Publier une fiche ainsi mettrait ce marqueur en toutes lettres à l'endroit d'un nom de dirigeant, sur la page dont l'audit (§4.9) dit qu'elle est un signal de confiance pour un donateur : ce serait **publier un gabarit comme s'il s'agissait d'un contenu** (invariant nº 1). `setTeamMemberStatus` refuse donc la mise en ligne tant que le nom est un marqueur — **aucun rôle n'y échappe**. Les deux autres issues étaient exclues : inventer un nom (invariant nº 1), ou afficher une carte sans nom (que le visiteur prendrait pour une panne). |
+| 92 | **`estNomAFournir()` vit dans le DOMAINE, et duplique `TODO`** | La reconnaissance est écrite une seule fois, dans l'entité `TeamMember`, plutôt que recopiée dans un cas d'usage et dans trois composants. `src/lib/site-config.ts` n'est PAS importé : `src/core/` est un domaine pur, et `site-config` est de la configuration d'application. **La duplication de la chaîne est assumée, et la recette (A01/A02) vérifie que les deux valeurs coïncident encore.** La comparaison porte sur la chaîne ENTIÈRE, en majuscules et sans espaces de bord — pas une sous-chaîne : « Todorov » contient « TODO » et est un nom réel (mesuré, A09/A10). |
+| 93 | **La garde est à la PUBLICATION, doublée d'une porte de derrière fermée** | Même partage qu'à l'écart nº 81 : interdire le marqueur À LA SAISIE rendrait les trois fiches du seed impossibles à enregistrer — ouvrir la fiche de la direction pour y déposer une photo échouerait sur un champ qu'on n'a pas touché. Un brouillon a le droit d'être incomplet. En contrepartie, `updateTeamMember` **refuse de remettre le marqueur sur une fiche EN LIGNE**, avec le message qui dit de dépublier d'abord. Sur un brouillon, c'est permis : c'est la façon honnête de dire « ce nom était provisoire ». |
+| 94 | **`status` est ABSENT de `createTeamMemberSchema`** | Même raisonnement qu'à l'écart nº 83, transposé : sans cela, un administrateur — qui passe `guard_publish` — pourrait créer une fiche déjà en ligne sans jamais traverser `setTeamMemberStatus`. `createTeamMember` écrit `'draft'` **en dur**. |
+| 95 | **La section « L'équipe » de `/a-propos` DISPARAÎT, et c'est l'état d'aujourd'hui** | Les trois fiches sont en brouillon (seed du Lot 1) : la lecture publique rend une liste vide, et la section entière est masquée — même règle qu'à l'accueil pour les témoignages et les actualités. **Ce qui disparaît avec elle, ce sont trois cartes portant « [À COMPLÉTER] » et le badge « Nom et photo à fournir » : un aveu d'incomplétude adressé aux VISITEURS.** Ce rappel n'est pas supprimé, il change de destinataire — il est en tête de `/dashboard/equipe`, où quelqu'un peut agir. **Marche à suivre pour le rétablir : renseigner les trois noms, puis publier les fiches.** |
+| 96 | **Le badge `PlaceholderBadge` n'est pas réintroduit** | `team_members` n'a pas de colonne équivalente à `articles.is_placeholder`. Contrairement au Lot 8C — où les trois témoignages portaient `placeholder: false` et où le badge n'était rendu nulle part — les trois fiches d'équipe portaient `placeholder: true` : le badge **était** affiché. Il n'est pas remplacé parce qu'il n'aurait plus de sujet : une carte ne peut plus atteindre `/a-propos` en portant un gabarit (écarts nº 91 et 93). Le laisser dans le code serait la trace d'un état devenu impossible. |
+| 97 | **AUCUN repli vers `/public` pour les photos — l'écart nº 85 se rejoue** | `membrePhoto(id)` suit `equipe-<id>.jpeg` où `<id>` est l'identifiant du tableau TypeScript (« direction », « programmes », « terrain »). En base c'est un UUID, et aucune colonne ne peut le remplacer : `position` change au réordonnancement, `name` vaut « [À COMPLÉTER] » sur les trois lignes. **Les trois fichiers restent dans `public/images/a-propos/`** ; pour les réutiliser : les téléverser dans la médiathèque, puis les choisir dans le champ « Photo ». Aucune régression visible aujourd'hui, puisque la section entière est masquée (écart nº 95). |
+| 98 | **« Voir sur le site » EXISTE ici, contrairement au Lot 8C** | L'écart nº 86 l'avait écarté parce qu'un témoignage n'apparaît sur l'accueil que s'il fait partie des trois premiers publiés. `/a-propos` affiche **tous** les membres publiés : si la fiche est en ligne, elle y est. Le lien n'est donc rendu **que sur une fiche publiée** — sur un brouillon il promettrait une page où elle ne figure pas — et il pointe vers `/a-propos#equipe`, ancre que la page ne rend elle aussi que lorsque la section existe. Mesuré des deux côtés (D11, E04). |
+| 99 | **Messages français jusqu'au niveau de l'OBJET** | Prolongement de l'écart nº 90, trouvé par la recette de ce lot (C02–C06 et suivantes) : les messages de champ ne servent à rien si la charge utile n'est pas un objet. `schema.safeParse("bonjour")`, `safeParse(null)`, `safeParse([])` rendaient « Invalid input: expected object, received string ». Chaque `z.object` de `team-member.schema.ts` porte donc un `{ message: "…" }` en second argument, **et le message se propage aux schémas dérivés** (`.omit()`, `.extend()`, `.partial()`) — vérifié sur les sept schémas × dix charges hostiles. ⚠️ **Ce trou existe encore dans `programme.schema.ts`, `article.schema.ts` et `testimonial.schema.ts`. À traiter au Lot 16, avec l'écart nº 90.** |
+| 100 | **Le titre d'onglet d'une fiche au marqueur affiche la FONCTION** | `generateMetadata` rend `Fiche : Coordination des programmes` plutôt que `[À COMPLÉTER]`. Avec plusieurs onglets ouverts, trois d'entre eux porteraient un libellé identique et seraient impossibles à distinguer ; la fonction est la seule information que ces fiches portent réellement. |
+
+### Écarts du Lot 8E
+
+| # | Écart | Raison |
+|---|---|---|
+| 101 | **La liste des noms d'icônes DESCEND dans le domaine** (`src/core/cms/entities/icon-name.ts`) | Elle vivait dans `src/components/ui-ext/icon-registry.ts`, mêlée aux composants React. Le domaine n'ayant pas le droit d'importer `@/components`, **aucun schéma ne pouvait vérifier qu'un nom d'icône en était un**. Résolution identique à celle de `MediaTone` au Lot 6 : le type descend — c'est une donnée du contenu, pas une notion de rendu — et la présentation le ré-exporte, de sorte qu'aucun import existant n'est cassé. `ICONS` est déclaré `Record<IconName, LucideIcon>` : **c'est ce typage, pas un commentaire, qui interdit aux deux fichiers de diverger** (ajouter un nom sans son composant casse la compilation). Vérifié en recette (A08–A13), y compris que `icon-name.ts` n'a aucun `import`. |
+| 102 | **`icon` est enfin un `z.enum` — et `programme.schema.ts` ne l'est TOUJOURS pas** | Mesuré, pas supposé (suite 2, E05) : **la base n'a aucune contrainte sur `icon`**, une ligne portant `icon = 'CeciNEstPasUneIcone'` s'insère sans erreur. Or `programme.schema.ts` (Lot 8A) valide par `z.string().trim().min(1)` : n'importe quelle chaîne passe, est écrite, et la page publique rend l'étoile de repli **sans que rien ne le signale** — donnée fausse, rendu plausible. `tone`, juste à côté, était un `z.enum` depuis le Lot 8A : la seule cause de l'asymétrie était l'étage où vivait la liste. `core-value.schema.ts` utilise donc `z.enum(ICON_NAMES)`. ⚠️ **`programme.schema.ts` peut et doit être resserré de la même façon — au Lot 16**, avec les écarts nº 90 et 99 : corriger le schéma d'un lot livré sans rejouer sa recette ne prouverait rien. |
+| 103 | **Première collection SANS cycle éditorial** — `is_visible`, pas `status` | `core_values` ne porte pas de colonne `status` (migration 0005) et la matrice ne contient **aucune** entrée `value:publish`, pour aucun rôle. Toute la chaîne suit : `setVisibility` au lieu de `setStatus`, `findVisible` au lieu de `findPublished`, `<VisibilityBadge>` (2 états) au lieu de `<StatusBadge>` (4), et **pas de `guard_publish` (ADB01) à redouter** puisque le trigger ne couvre que les tables à `status`. C'est la seule barrière **en moins** de ce lot, et elle explique l'écart nº 104. Ce que ce choix dit, et qui est juste : **il n'y a pas de brouillon d'un principe.** |
+| 104 | **⚠️ UN ÉDITEUR PEUT RETIRER UNE VALEUR DE DEUX PAGES PUBLIQUES** | Afficher ou masquer relève de `value:update`, que l'éditeur possède — `value:publish` n'existe pas. Il ne peut dépublier ni programme, ni article, ni fiche d'équipe, mais il peut faire disparaître une valeur de l'accueil ET de « Qui sommes-nous ». **Ce n'est pas une faute d'implémentation** : la matrice (§9 du Rapport 1) et la RLS (`core_values_staff_update`, migration 0009) le disent indépendamment l'une de l'autre, et la recette le MESURE (suite 2, D08) plutôt que de le supposer. Le raisonnement derrière est défendable — une liste structurante se corrige, elle ne se soumet pas à relecture — mais l'écart de pouvoir méritait d'être écrit plutôt que découvert. **Le corriger serait une décision de produit**, touchant la matrice ET une migration : hors périmètre d'un lot de collection. |
+| 105 | **`value:create` et `value:delete` sont RÉSERVÉS aux administrateurs** | Première collection du Lot 8 où un éditeur ne peut pas créer. Là encore la matrice et la RLS concordent (`core_values_admin_insert/delete` exigent `app_can_publish()`). Le bouton « Nouvelle valeur » n'est pas rendu, **et le motif est écrit à l'écran** : une commande absente sans explication passe pour une panne (§12). Nuance mesurée au passage (suite 2, D04b) : **une INSERTION refusée est REJETÉE (42501), pas filtrée**, contrairement à `update`/`delete` — sa politique n'a qu'un `WITH CHECK`, il n'y a aucune ligne à filtrer. La règle « la RLS filtre, elle ne rejette pas » (découverte nº 1) vaut donc pour les mises à jour et les suppressions, **pas pour les créations**. Les deux protections du dépôt — code d'erreur et comptage de lignes — sont ainsi non redondantes. |
+| 106 | **Masquer la DERNIÈRE valeur visible est AUTORISÉ** | La tentation était de refuser, comme `setTeamMemberStatus` refuse un marqueur. Trois raisons de ne pas le faire : (a) l'état interdit du Lot 8D était **faux** (un gabarit affiché comme un contenu), celui-ci n'est que **vide** — et une section vide qui disparaît est le comportement établi depuis le Lot 8B ; (b) ce serait inventer une contrainte que ni la base ni le métier ne portent (le §8E dit « 4 par défaut », pas « 4 au minimum ») ; (c) le geste est **trivialement réversible**, contrairement à une suppression. Ce qui est fait à la place : le bandeau dit ce que **les deux pages** affichent, une confirmation nomme la conséquence quand c'est la dernière, et la fiche l'écrit avant le clic. **Informer plutôt qu'interdire.** |
+| 107 | **Le titre « Quatre principes » de `/a-propos` est désormais DÉRIVÉ du décompte** | Défaut trouvé en écrivant le lot, et réel : le titre était écrit en dur. C'était vrai tant que la liste vivait dans un fichier TypeScript modifié dans le même commit ; **elle devient modifiable depuis le dashboard, et le titre devient une affirmation que la page n'a plus aucun moyen de tenir.** Ajouter une cinquième valeur ou en masquer une laissait la page annoncer « Quatre » au-dessus d'une grille qui en comptait trois ou cinq — l'invariant nº 1 dans sa forme la plus discrète. `src/lib/nombres.ts` (`enLettres`, `accorde`) le dérive ; avec les quatre valeurs migrées le rendu est identique **au caractère près** (recette K01, B04), et il suit le décompte (mesuré à 3 et à 5 : B05, D14). ⚠️ **`/programmes` annonce « Huit domaines d'intervention » et l'accueil « Voir les 8 programmes »** — même défaut, depuis le Lot 8A. Consigné, **non corrigé** : les toucher exigerait de rejouer la recette du Lot 8A. |
+| 108 | **`isVisible` est ABSENT du schéma de FORMULAIRE, mais PRÉSENT à la création** | L'inverse exact des écarts nº 83/94, et pour une raison symétrique. **Absent du formulaire** : retirer une valeur du site est une décision, pas une saisie — une case au milieu de quatre champs de texte se coche par distraction, et celle-là retirerait la valeur de deux pages publiques en même temps qu'une correction d'orthographe. **Présent à la création, avec `true` par défaut** : il n'y a aucune garde à forcer ici (pas de `value:publish`), et la base écrit `is_visible = true` par défaut ; le retirer aurait imposé deux gestes pour l'usage normal sans rien protéger. Une valeur naît donc VISIBLE, et l'écran le dit. |
+| 109 | **`ListFilter.status` est IGNORÉ par ce dépôt, jamais transformé en liste vide** | Le champ appartient au vocabulaire commun des listes, hérité des quatre collections à cycle éditorial. Le transmettre à PostgREST produirait « column core_values.status does not exist ». Il est donc ignoré et la liste **entière** est renvoyée — choix écrit plutôt que subi, et vérifié des deux côtés (suite 1, H07 ; suite 2, F05/F06), **y compris sur le dépôt en mémoire**, qui doit se comporter comme le vrai jusque dans ce qu'il ne fait pas. Renvoyer zéro ligne aurait été bien pire : **un écran vide ne se distingue pas d'une collection vide.** |
+| 110 | **Le mapper replie une icône inconnue sur `Sparkles`, il ne lève pas** | La colonne est `text not null` : la base accepte n'importe quoi (mesuré, E05). Lever aurait fait tomber l'accueil ET « Qui sommes-nous » sur leur frontière d'erreur à cause d'un caractère de trop dans un champ décoratif. Le repli ne masque rien d'important — `<ContentIcon>` fait déjà le même choix au rendu depuis le Lot 8A, et l'icône n'est jamais porteuse d'information. ⚠️ **Il ne « nettoie » pas la base** : la ligne garde sa valeur invalide. Ce qui empêche vraiment une icône inconnue d'entrer, c'est le `z.enum` en amont. Le repli est la ceinture, le schéma est le harnais. |
+| 111 | **`src/content/biographie.ts` a suivi la convention d'icône** | `<ValueCard>` sert deux collections sans rapport : les valeurs (désormais en base) et les quatre « domaines d'engagement » de `/biographie`, qui restent dans `src/content/` — ils décrivent le parcours d'une personne et ne figurent dans aucun lot du CMS. La carte ayant basculé sur les NOMS d'icônes, ces quatre entrées les suivent ; le rendu est identique (vérifié, suite 3, D03/D04). **`engagementsBiographie`, plus bas dans le même fichier, garde des composants** : cette liste ne passe pas par `<ValueCard>` et la convertir aurait été un changement sans nécessité. |
+| 112 | **Les deux liens « Voir sur… » ont quitté l'en-tête de la fiche** | Défaut trouvé par la recette (suite 5, E) : quatre commandes dans l'en-tête faisaient **650 px de large**, et l'écran débordait horizontalement dès 640 px — c'est-à-dire **au zoom 200 %**, la situation où l'on a le plus besoin de lire. Ils sont descendus sur la ligne d'état, en phrase, à côté du badge de visibilité — ce ne sont pas des commandes, ils DISENT où la valeur apparaît. Seconde correction dans la foulée : rendus en liens de texte, ils mesuraient **56 × 17 et 122 × 17 px**. La tentation était d'inscrire dans le harnais l'exception WCAG 2.5.8 pour les liens « au sein d'une phrase » ; **se donner une dispense au moment où elle arrange le code qu'on vient d'écrire, c'est cesser de mesurer.** Ils portent donc `inline-flex min-h-11`. |
+
+### Écarts du Lot 8F
+
+| # | Écart | Raison |
+|---|---|---|
+| 113 | **⚠️ LE JSON-LD DÉCLARE DÉSORMAIS LA RÉPONSE ENTIÈRE, PUCES COMPRISES** | `faqJsonLd` recevait `answer` SEUL. Or `<FAQAccordion>` affiche le paragraphe **puis** les puces — et sur la première question du site, « Comment faire un don à ADEBES ? », les **quatre canaux de don sont dans les puces**. Le balisage envoyé aux moteurs annonçait donc une réponse qui n'en contenait aucun : une réponse tronquée présentée comme complète. Les consignes de Google sur `FAQPage` sont explicites — le contenu balisé doit être celui que le visiteur voit. `texteReponse()` (entité `FaqItem`) compose les deux, en texte simple, jamais en HTML. **Ce n'est pas un enrichissement mais une correction, et c'est ce lot qui la rend urgente** : les puces étaient jusqu'ici figées dans un fichier TypeScript relu à chaque commit ; elles deviennent saisissables, et rien n'empêchera — ni ne devrait empêcher — d'y mettre l'essentiel d'une réponse. Mesuré avant/après (suite 3, B07–B08 ; suite 4, E04). |
+| 114 | **`<FAQAccordion>` : la clé passe de la QUESTION à l'IDENTIFIANT** | `key={item.question}` et `value={`faq-${index}`}`. **Le premier est un défaut réel** : deux questions du même sujet portant le même libellé produisaient une clé React DUPLIQUÉE, et React aurait réutilisé le mauvais panneau au dépliage. L'état était impossible tant que la liste vivait dans un fichier relu à chaque commit ; il devient atteignable depuis un dashboard. Le second l'était aussi, autrement : un index rouvre le mauvais panneau après un réordonnancement. **C'est le motif récurrent du Lot 8 — la bascule en base ne casse pas les données, elle rend atteignables des états que le fichier TypeScript rendait impossibles.** |
+| 115 | **Un doublon de question est SIGNALÉ, jamais interdit** | Ni la base ni le métier ne portent d'unicité, et deux sujets différents peuvent légitimement poser la même question (« Comment nous contacter ? » a sa place dans les deux FAQ) — inventer une contrainte est précisément la faute que le Lot 8D a refusé de commettre. Mais **deux questions identiques dans le MÊME sujet** produisent deux entrées identiques dans le même `FAQPage` et deux panneaux jumeaux dans l'accordéon. L'écran de liste les compte en tête de page et marque **les deux lignes** concernées — pas seulement la seconde, qui n'est pas plus fautive que la première. Informer plutôt qu'interdire (Lot 8E), quand l'état est réversible d'un clic. |
+| 116 | **`topic` est la PREMIÈRE liste de référence doublée par une contrainte SQL** | Différence mesurée avec l'écart nº 102 : `core_values.icon` est un `text` LIBRE et accepte n'importe quoi (revérifié en suite 2, C03) ; `faq_items.topic` porte `check (topic in ('don','benevolat','general'))` et refuse par **23514** (C01–C02). Il y a donc **deux barrières indépendantes**, et non une seule. Le schéma reste indispensable : sans lui, un sujet invalide traverserait toute la chaîne pour échouer sur « violates check constraint "faq_items_topic_check" » — exact, illisible, et affiché à quelqu'un qui n'écrira jamais de SQL. **Le repli du mapper vers « general » est donc une conséquence du TYPAGE généré, pas une défense contre un cas atteignable** — `database.types.ts` déclare `topic: string`, le générateur ne lisant pas les contraintes `check`. La recette vérifie que les deux colonnes ne se comportent PAS pareil, plutôt que de le supposer. |
+| 117 | **QUATRE étiquettes de cache — le plus grand nombre du projet — et invalidation LARGE assumée** | `cms:faq`, `cms:page:accueil`, `cms:page:don`, `cms:page:benevolat`. Les deux dernières sont NOUVELLES. Les quatre sont invalidées à chaque mutation, y compris quand la question touchée n'appartient qu'à un sujet, et c'est délibéré : `updateFaqItem` peut CHANGER le sujet (il faudrait alors lire l'ancienne valeur avant d'écrire, uniquement pour économiser une invalidation), une question de don peut figurer sur l'accueil selon sa position, et un simple **réordonnancement** change ce que l'accueil affiche sans toucher au moindre sujet. **Invalider large est ici la seule forme CORRECTE** ; invalider fin aurait exigé de raisonner juste à chaque appel, et l'erreur — une page qui garde une réponse périmée — serait invisible depuis le dashboard. |
+| 118 | **AUCUNE garde propre au lot, et c'est un constat, pas un oubli** | Les Lots 8C et 8D en portaient une parce qu'un état FAUX était atteignable : une citation sans accord, un marqueur affiché à la place d'un nom. Rien de tel ici — les sept questions du seed sont complètes, vraies, déjà en ligne, et aucune ne porte de gabarit. `setFaqItemStatus` se limite donc à exiger une question ET une réponse non vides (le schéma le fait déjà à la saisie ; ce cas d'usage est la dernière barrière avant la mise en ligne, atteignable par un import ou une écriture directe). **Chercher une garde à tout prix aurait conduit à en inventer une** — refuser une question qui ne finit pas par « ? », par exemple, ce qui empêcherait de publier « Où intervenons-nous au Cameroun » pour un signe de ponctuation. |
+| 119 | **`bullets` est la PREMIÈRE liste facultative du projet** | Les trois listes du Lot 8A (`actions`, `publics`, `besoins`) portent `.min(1)` : un programme sans action n'est pas un programme. Ici, **cinq des sept questions du site n'ont aucune puce** et se lisent parfaitement. Exiger au moins une ligne obligerait à en inventer une (invariant nº 1) ou à couper la réponse en deux pour satisfaire le formulaire. Le `<ListField>` du Lot 6 gérait déjà le cas — il rend « Aucune puce pour l'instant » et le libellé « (facultatif) » — mais **aucun écran livré ne l'avait encore exercé**. |
+| 120 | **⚠️ UN ÉDITEUR PEUT RETIRER UNE QUESTION DE L'ACCUEIL SANS AVOIR `faq:publish`** | Par le RÉORDONNANCEMENT. L'accueil n'affiche que les quatre premières questions publiées hors bénévolat : remonter une question générale en fait mécaniquement disparaître une autre. `faq:reorder` est ouverte à l'éditeur (matrice §9, et `reorder_rows` n'exige que `app_is_staff()`). **C'est le jumeau de l'écart nº 104, en moins grave** : la question reste en ligne sur la page de son sujet, ce n'est pas une dépublication déguisée — sauf pour un sujet `general`, qui n'a pas de page à lui. Le mécanisme est identique à celui du Lot 8C pour les trois témoignages de l'accueil. Il est **consigné et signalé à l'écran** (colonne « Accueil », bandeau), pas corrigé : le corriger serait une décision de produit. |
+| 121 | **Changer le SUJET déplace la question d'une page à l'autre, et c'est AUTORISÉ** | C'est le seul champ de cette collection dont la modification a un effet que l'éditeur ne voit pas sur l'écran où il travaille. La tentation était d'en faire une garde, sur le modèle des Lots 8C et 8D ; elle a été écartée parce que **aucun état n'est faux ici** — une question de bénévolat rangée dans « Dons » est une erreur de classement, qui se corrige précisément par cette modification. Refuser reviendrait à empêcher la correction. À la place, `<ConsequenceDuSujet>` ÉCRIT la conséquence sous le champ et, sur une question existante, **nomme le déplacement** : « elle quittera la page X ». Mesuré des deux côtés (suite 4, F01–F04). |
+| 122 | **Deux liens en ligne corrigés DANS le périmètre du lot** | Trouvés par la sonde de cibles bornée à la section `#faq` : « Écrivez-nous » (accueil) à **89 × 17 px** et « Devenez bénévole » (`/don`) à **123 × 17 px**. Ils sont dans la section que ce lot livre, et l'écart nº 112 s'applique mot pour mot : la règle 4 du §12 ne connaît pas d'exception pour un lien « au sein d'une phrase ». Ils portent désormais `inline-flex min-h-11`. Le relevé hors périmètre est passé de 13 à 12 cibles sur l'accueil et de 6 à 5 sur `/don` — les deux corrigées, et rien d'autre touché. |
+| 123 | **Trois ancres `id="faq"` ajoutées, et trois sections rendues conditionnelles** | Les ancres sont exigées par les liens « Voir sur le site » de la fiche (sans elles, le lien mène en haut de page). La condition suit la règle établie depuis le Lot 8B : une section vide disparaît plutôt que d'annoncer un contenu absent. **Elle compte doublement ici** — sans elle, la page émettrait un `FAQPage` **VIDE**, c'est-à-dire une déclaration fausse envoyée aux moteurs. C'est la raison pour laquelle le bloc JSON-LD lui-même est conditionnel, et pas seulement l'accordéon (suite 3, H03). |
 
 ---
 
@@ -570,11 +667,170 @@ périmé — et le `next start` du Lot 8C a échoué sur `EADDRINUSE` pendant qu
 (`Get-NetTCPConnection -LocalPort <port> -State Listen`) et arrêter le serveur
 dans le nettoyage de fin, au même titre que les comptes de test.
 
-**35. Le disque de la machine est proche de la saturation.** ~130 Mo libres
-après un `npm run build`. `.next/cache` pèse à lui seul 120 à 220 Mo et se
-regénère : le vider (`Remove-Item -Recurse .next\cache`) est sans risque et
-suffit à faire tenir une recette navigateur, qui a besoin de place pour le
-profil Chrome temporaire. À surveiller avant chaque lot.
+**35. ⚠️ LE DISQUE DE LA MACHINE EST SATURÉ — à vérifier AVANT chaque lot.**
+Le volume `C:` a atteint **0 octet libre** pendant le Lot 8C, et la panne ne
+ressemble pas à une panne de disque : `npx tsc --noEmit` s'est mis à échouer sur
+`Type '"/dashboard/…/[id]"' does not satisfy the constraint 'AppRoutes'` pour
+les TROIS routes dynamiques du projet, y compris celles des lots précédents. La
+cause réelle était que Next ne pouvait plus écrire `.next/types/`. Chercher un
+défaut de typage aurait fait perdre des heures.
+
+`.next/cache` pèse 120 à 220 Mo, se regénère seul et n'est pas utilisé par
+`next start` : le vider est sans risque.
+
+```powershell
+Get-PSDrive C | Select-Object @{n='FreeMB';e={[math]::Round($_.Free/1MB)}}
+Remove-Item -Recurse -Force .next\cache
+```
+
+Prévoir ~250 Mo libres pour une recette navigateur : le profil Chrome
+temporaire s'y ajoute. Turbopack le signale à sa façon, en toute fin de build et
+avant le `✓ Compiled successfully` — « Persisting failed during shutdown […]
+Espace insuffisant sur le disque (os error 112) » : **ce message ne fait pas
+échouer le build**, mais il annonce la panne suivante.
+
+**⚠️ COMPLÉMENT DU LOT 8D — le vrai gisement n'est PAS `.next/cache`.**
+Le disque est retombé à zéro pendant le Lot 8D. `.next/cache` avait déjà été
+vidé : **c'est `.next/dev` qui pesait 1,1 Go**, le cache Turbopack du serveur de
+DÉVELOPPEMENT. `next start` ne le lit jamais — il ne se sert que de
+`.next/server`, `.next/static` et des manifestes — et il se regénère seul au
+prochain `next dev`, au prix d'un premier démarrage plus lent. Le supprimer a
+rendu 1,1 Go d'un coup, serveur de recette en marche, sans rien casser.
+
+```powershell
+Remove-Item -Recurse -Force .next\dev      # ~1 Go, cache de `next dev`
+Remove-Item -Recurse -Force .next\cache    # 120–220 Mo
+```
+
+Le dossier `%LOCALAPPDATA%\Temp` de la machine pèse par ailleurs **3,4 Go**,
+étalés sur ~1700 fichiers `.tmp` laissés par d'autres applications. Rien n'y a
+été touché : ce n'est pas au projet d'en décider. C'est signalé pour que
+l'utilisateur puisse le faire.
+
+**36. Un compte de recette a besoin de son PROPRE contexte de navigation.**
+Deux onglets d'un même profil Chrome partagent leurs cookies : ouvrir
+`/connexion` dans un second onglet alors que le premier est connecté en
+administrateur ne montre pas le formulaire mais **redirige vers `/dashboard`**,
+et la recette conclut que le champ e-mail a disparu. La parade est
+`Target.createBrowserContext`, puis `Target.createTarget({ browserContextId })`
+— l'équivalent d'une fenêtre privée distincte. Indispensable dès qu'un lot
+compare deux rôles dans la même exécution.
+
+**37. `document.readyState === 'complete'` ne veut PAS dire « React a hydraté ».**
+Une valeur écrite dans un champ avant l'hydratation est effacée par le premier
+rendu client, qui restaure la `defaultValue` : l'écran affiche alors
+« L'adresse e-mail est obligatoire » sur un champ qu'on vient de remplir. Le
+symptôme est **intermittent** et ressemble à un défaut de l'application. La
+parade est de RELIRE le champ après l'avoir écrit et de recommencer tant que la
+valeur n'a pas tenu — c'est ce que fait désormais le `saisir()` du module CDP.
+C'est le prolongement de la découverte nº 33 : ne pas supposer qu'une action a
+pris, le vérifier.
+
+**38. La recette peut se faire bloquer par la protection anti-force brute du
+projet.** `connexion` est limité à **5 tentatives par quart d'heure et par
+adresse IP** (`rate-limit.ts`, table `rate_limits`). Une suite qui ouvre deux
+sessions atteint la limite au troisième passage, et l'écran répond « Trop de
+tentatives. Patientez 15 minutes ». **C'est la protection qui fonctionne**, pas
+un défaut. La parade employée : remettre à zéro les seules clés de la boucle
+locale (`connexion:::ffff:127.0.0.1`, `connexion:::1`) au démarrage de la
+suite — jamais celles d'une adresse réelle, dont la protection reste entière.
+
+**39. La casse des en-têtes n'est pas garantie côté CDP.**
+`Network.requestWillBeSent` rend les en-têtes tels qu'ils partent : Next émet
+`next-action` en minuscules. Chercher `headers["Next-Action"]` à l'identique ne
+trouve jamais rien — et la mesure passe pour « aucune Server Action appelée »
+alors qu'elles le sont toutes. Toujours chercher sans tenir compte de la casse.
+
+**40. Une recette interrompue empoisonne la suivante.** Une exécution qui échoue
+avant son bloc de nettoyage laisse derrière elle ses comptes et ses lignes ; la
+suite d'après les photographie comme « état initial » et se compare à un état
+faux — quatre échecs du Lot 8D venaient de là, aucun du code. **Toute suite qui
+écrit doit PURGER ses propres traces à son démarrage**, sur un préfixe qui ne
+peut appartenir à personne d'autre (`RECETTE-8D`, `recette-8d-…@exemple.test`),
+et déduire ses comptes attendus de l'état initial mesuré plutôt que d'un nombre
+écrit en dur.
+
+**41. ⚠️ CHROME HEADLESS DÉMARRE EN 800 × 600 — et le `<DataTable>` rend alors
+des CARTES.** Sous 1024 px il n'y a **aucune structure de tableau** dans le DOM
+(`card-view.tsx`) : un sélecteur `tbody tr` n'y trouve rien, et l'échec ressemble
+trait pour trait à « les données ne sont pas arrivées ». Six vérifications du
+Lot 8E ont échoué pour cette seule raison. **Appeler
+`Emulation.setDeviceMetricsOverride` AVANT toute mesure**, et attendre les lignes
+(`tbody tr`) plutôt que le titre de la page avant de lire `innerText` — le
+`<DataTable>` rend un squelette côté serveur et ne monte son contenu qu'après
+hydratation.
+
+**42. ⚠️ `indexOf` SUR UNE PAGE ENTIÈRE NE MESURE PAS CE QU'ON CROIT.** La
+vérification d'ordre d'affichage du Lot 8E échouait en annonçant
+`Solidarité@298` — alors que la base ET la grille étaient parfaitement
+réordonnées. Le mot « Solidarité » apparaît **ailleurs sur l'accueil**, dans les
+puces de la section « À propos », bien avant la grille des valeurs. **Un titre de
+contenu est souvent un mot courant** : toute vérification de PRÉSENCE ou d'ORDRE
+doit être bornée à la section concernée. Les ancres `id="…"` posées pour les
+liens du dashboard servent de borne naturelle.
+
+**43. Une mesure de périmètre doit respecter son périmètre.** Même lot, même
+famille d'erreur : la sonde de débordement mesurait toujours
+`document.documentElement`, y compris pour les entrées déclarées « section
+valeurs ». Elle a échoué à 320 px sur l'accueil — coupable mesuré : la grille des
+**témoignages** (Lot 8C), à 340 px. L'assertion imputait au Lot 8E un défaut
+livré deux lots plus tôt. **Sans bornage, chaque lot hérite des défauts de tous
+les précédents et plus personne ne sait à qui appartient quoi.** Le relevé global
+reste utile, mais à sa place : une section qui AFFICHE sans COMPTER.
+
+**44. Ne jamais assouplir une règle de mesure pour excuser le code qu'on vient
+d'écrire.** Deux fois au Lot 8E la tentation s'est présentée : chercher « lucide »
+dans un fichier entier échouait sur le commentaire qui explique pourquoi lucide
+n'y est pas (assertion corrigée pour porter sur le CODE seul — légitime) ; mais
+surtout, deux liens en ligne mesurés à 17 px de haut invitaient à inscrire dans
+le harnais l'exception WCAG 2.5.8 pour les liens « au sein d'une phrase ».
+**C'était l'inverse qu'il fallait faire** — les liens du pied de page, relevés à
+22 px, attendent d'être corrigés au Lot 12 sous cette même règle. Corriger
+l'assertion quand elle mesure la mauvaise chose ; corriger le CODE quand elle
+mesure la bonne.
+
+**45. ⚠️ LE CONTENU D'UN ACCORDÉON RADIX FERMÉ N'EST PAS DANS LE HTML SERVI.**
+Jumeau exact de la découverte nº 32 pour le `<DataTable>`, et il a produit le
+même genre de faux échec. Radix ne monte le `<AccordionContent>` qu'à
+l'ouverture : le HTML de `/don` contient les QUESTIONS (les déclencheurs) et
+**aucune** réponse. Une assertion HTTP qui cherche le texte d'une réponse
+échoue à juste titre — la vérification appartient à la suite NAVIGATEUR, après
+un clic sur le panneau.
+
+L'assertion fautive cherchait de surcroît dans la page ENTIÈRE et « passait » à
+moitié : « Orange Money » apparaît aussi dans la section « Moyens de paiement »,
+très au-dessus de la FAQ (découverte nº 42 qui se rejoue).
+
+**Et une conséquence qui dépasse la recette :** le texte des réponses n'atteint
+un moteur de recherche **que par le JSON-LD**. C'est ce qui rend l'écart nº 113
+structurant plutôt que cosmétique — le balisage n'est pas un doublon du
+contenu visible, il en est le seul véhicule.
+
+**46. `Runtime.evaluate` doit envelopper l'expression dans une IIFE ASYNC.**
+Une IIFE ordinaire lève « await is only valid in async functions » dès que la
+sonde a besoin d'un `await` — c'est le cas du rejeu d'une Server Action, qui
+fait un `fetch`. `(async () => { … })()` avec `awaitPromise: true` couvre les
+deux cas sans changer le comportement des expressions synchrones. Le module CDP
+du Lot 8E ne l'avait pas rencontré, aucune de ses sondes n'étant asynchrone.
+
+**47. La capture d'une Server Action arrive quand le `fetch` PART, pas quand il
+revient.** Complément à la découverte nº 28. Le patron « patcher `window.fetch`,
+cliquer, attendre la capture » rend la main **avant** que la mutation ne soit
+committée. Republier tout de suite court contre elle, et l'écrasement qui suit
+ressemble trait pour trait à « le refus n'était pas cosmétique, l'action a bien
+eu lieu ». Il faut attendre la CONDITION en base — ici, que le statut soit
+réellement retombé à `draft` — avant d'enchaîner. C'est la découverte nº 33
+appliquée à une mutation distante : on attend une condition, et il faut attendre
+la BONNE.
+
+**COMPLÉMENT DU LOT 8E à la découverte nº 35 (disque).** Le disque est retombé à
+**30 Mo** avant la recette. Cette fois `.next/dev` n'existait pas (aucun
+`next dev` lancé) et `.next/cache` ne pesait que 125 Mo. **Le vrai gisement était
+`%LOCALAPPDATA%\npm-cache` : 8,5 Go.** C'est un cache de téléchargement, purement
+jetable — `npm cache clean --force` l'a ramené à zéro et libéré **8,3 Go**, au
+seul prix d'un retéléchargement au prochain `npm install`. À vérifier en premier
+désormais, avant `.next/`. (`%LOCALAPPDATA%\Temp` pesait 4,0 Go et le profil
+Chrome 4,6 Go : **laissés intacts**, ils n'appartiennent pas au projet.)
 
 ---
 
@@ -821,30 +1077,278 @@ zéro avertissement.
 
 ---
 
-## Prochaine étape : Lot 8C — témoignages
+## Ce qu'a livré le Lot 8C (détail)
 
-Voir la table des lots 8B → 8I du Rapport 2. Spécificités de 8C : lien vers un
-programme, et **avertissement de consentement affiché dans le formulaire** —
-règle absolue de `src/content/temoignages.ts` : aucune citation sans accord.
+### Fichiers
 
-Quatre choses valent d'être sues avant de commencer :
+| Fichier | Rôle |
+|---|---|
+| `src/core/cms/entities/testimonial.ts` | `Testimonial`, `CreateTestimonial`, `UpdateTestimonial`. Documente pourquoi `placeholder` disparaît et pourquoi `hasConsent` n'est pas un champ comme les autres |
+| `src/core/cms/ports/testimonial.port.ts` | Lecture / écriture séparées. `TestimonialDeps` porte un `ProgrammeReadPort` — la création vérifie que le programme cité existe |
+| `src/core/cms/schemas/testimonial.schema.ts` | 6 schémas. `status` absent de la création (écart nº 83), messages français jusqu'aux erreurs de type (écart nº 90) |
+| `src/core/use-cases/testimonials/` | 7 cas d'usage. `set-testimonial-status.ts` porte **la règle absolue du §8C** ; `update-testimonial.ts` ses deux verrous (écart nº 82) |
+| `src/core/testing/in-memory-testimonial.repository.ts` | Dépôt en mémoire — les cas d'usage se recettent sans base |
+| `src/infrastructure/supabase/mappers/testimonial.mapper.ts` | `snake_case` ⇄ `camelCase`. Le plus simple des trois : aucun JSONB, aucun tableau |
+| `src/infrastructure/supabase/repositories/testimonial.repository.ts` | Liste blanche de tri, `findPublished`, `reorder_rows('testimonials')` — **légitime ici**, contrairement au Lot 8B |
+| `src/server/deps/testimonial.deps.ts` | Un client Supabase pour les deux dépôts. Gabarit de `programme.deps.ts` |
+| `src/server/actions/testimonials.actions.ts` | 5 actions. Étiquettes réduites à deux : pas de fiche à invalider (écart nº 86) |
+| `src/server/queries/testimonials.query.ts` | `getTemoignagesPublies()`. **Porte le raisonnement complet de l'écart nº 84** |
+| `src/server/dal/programme-options.ts` | ✚ Les options du champ `reference` vers `programme` (écart nº 89) |
+| `src/components/dashboard/testimonials/testimonial-form.tsx` | 6 descripteurs + `<AvertissementConsentement>`, qui **change de texte plutôt que de disparaître** une fois la case cochée |
+| `…/testimonials-client.tsx` | Colonne « Accord » textuelle, 3 filtres, bandeau comptant les lignes en ligne sans accord, « Publier » désactivé avec motif |
+| `…/testimonial-editeur.tsx` | Trois états distincts : brouillon sans accord · en ligne et affiché · en ligne hors des trois premiers |
+| `src/app/(dashboard)/dashboard/temoignages/{,nouveau/,[id]/}page.tsx` | Les trois écrans |
+| `src/components/cards/testimonial-card.tsx` | Réécrite pour le `Testimonial` du domaine. **Repli `/public` supprimé** (écart nº 85) |
+| `src/app/(site)/page.tsx` | La section « Témoignages » lit la base ; elle disparaît entièrement s'il n'y en a aucun en ligne |
+| `src/core/cms/blocks/types.ts` | ✚ `reference` dans `CHAMPS_PLEINE_LARGEUR` (écart nº 88) |
+| `src/content/temoignages.ts` | N'est plus importé par aucune page. En-tête mis à jour |
 
-- **la colonne `testimonials.has_consent` existe déjà** (écart nº 13, validée au
-  Lot 1). Le §8C impose une case à cocher obligatoire « La personne a donné son
-  accord écrit pour la publication de cette citation » : sans cette colonne, la
-  case ne laisserait aucune trace. Elle doit être exigée **par le schéma**, pas
-  seulement par l'interface ;
-- `testimonials.programme_id` est en `on delete restrict` : c'est ce qui fait
-  qu'un programme cité ne peut pas être supprimé (recette du Lot 8A). Le champ
-  du formulaire est un `reference` vers `programme`, et ses options sont
-  fournies par l'écran (écart nº 40) ;
-- `testimonials` **porte une colonne `position`**, contrairement à `articles` :
-  le réordonnancement du §8x s'applique cette fois à la collection elle-même,
-  avec `reorder_rows('testimonials')` et la glissière du `<DataTable>`. Le
-  gabarit à recopier est celui du Lot 8A, pas celui du Lot 8B ;
-- le champ `boolean` et le champ `number` nullable viennent d'être corrigés
-  (écart nº 78) : leurs cases à cocher font désormais 44 px. Ne pas les
-  redimensionner localement.
+### Recette exécutée — 498 vérifications, 0 échec
+
+| Suite | Vérifs | Ce qu'elle couvre |
+|---|---|---|
+| Code pur | 174 | 6 schémas (dont l'absence de `status` à la création et l'absence totale de message anglais), 7 cas d'usage sur dépôts en mémoire, les 3 mappers, la matrice RBAC |
+| Infrastructure (base réelle) | 78 | Dépôt, RLS lecture/écriture/suppression, `guard_publish`, `on delete restrict`, `reorder_rows`, aller-retour de `has_consent` |
+| HTTP (`next start`) | 92 | Gardes, 3 écrans, **bascule de l'accueil** : dépublication, republication, section vide, quatrième témoignage, effet du réordonnancement |
+| Parcours navigateur (CDP) | 69 | Création sans accord, refus de publication, bascule de l'avertissement, retrait d'accord refusé, réécriture de citation refusée puis régularisée, « Monter », rejeu direct → `FORBIDDEN`, suppression, journal d'audit |
+| Responsive / a11y | 85 | 3 écrans × 5 largeurs, cibles 44 px, 16 px sous 768 px, zoom 200 %, contraste AA **clair et sombre**, bascule tableau/cartes, clavier |
+
+Trois points de la recette valent d'être retenus :
+
+- **la base, seule, n'empêche pas de publier sans accord** — aucune contrainte
+  SQL ne porte sur `has_consent`. Mesuré (D21 de la suite infrastructure). C'est
+  le domaine qui tient la règle, et c'est pourquoi aucune écriture ne doit
+  court-circuiter les cas d'usage ;
+- **la même règle est vérifiée aux trois niveaux** : le bouton est désactivé
+  avec son motif, la Server Action refuse, et le rejeu direct par un éditeur
+  reçoit `FORBIDDEN` ;
+- **l'état final de la base est identique à l'état initial** : 1 profil,
+  3 témoignages publiés sans accord dans leur ordre d'origine, `media_assets`
+  vide, `audit_logs` toujours à 17 entrées (aucune ajoutée). Banc de recette
+  entièrement retiré du dépôt, serveur de recette arrêté.
+
+`npm run build`, `npx tsc --noEmit` et `npx eslint .` : code de sortie **0**,
+zéro avertissement.
+
+### Points de vigilance légués
+
+- **Les trois portraits de `/public/images/temoignages/` ne s'affichent plus**
+  (écart nº 85). Ce n'est pas une régression accidentelle mais une conséquence
+  assumée et mesurée. Marche à suivre pour l'utilisateur : téléverser les trois
+  fichiers dans `/dashboard/mediatheque`, puis les choisir dans le champ
+  « Photo » de chaque fiche. Les fichiers sont toujours sur le disque.
+- **Les trois témoignages du seed restent en ligne sans accord.** Rien ne les a
+  modifiés : ce sont des gabarits, l'écran les signale, et aucun NOUVEAU
+  témoignage ne peut être mis en ligne sans accord.
+- **`audit_logs` contient toujours les 17 entrées résiduelles du Lot 7.** Aucune
+  ajoutée par le Lot 8C. À purger avant le Lot 13.
+- **La liste des programmes est lue deux fois** sur l'écran de fiche (options du
+  champ + rien d'autre) : une seule requête en pratique. Si un troisième
+  appelant apparaît, mémoïser `lireOptionsProgrammes` avec `cache()`.
+- **Le trou de l'écart nº 90 existe dans `programme.schema.ts` et
+  `article.schema.ts`.** Une charge utile amputée y produit encore un message
+  anglais. Remède connu, une chaîne par champ. À traiter au Lot 16.
+
+---
+
+## Ce qu'a livré le Lot 8D (détail)
+
+### Fichiers
+
+| Fichier | Rôle |
+|---|---|
+| `src/core/cms/entities/team-member.ts` | `TeamMember`, `CreateTeamMember`, `UpdateTeamMember`, **`MARQUEURS_NOM_A_FOURNIR` et `estNomAFournir()`** |
+| `src/core/cms/ports/team-member.port.ts` | Les ports les plus courts du Lot 8 : `TeamMemberDeps` n'a que `read` et `write` |
+| `src/core/cms/schemas/team-member.schema.ts` | 7 schémas. Messages français aux trois niveaux : champ, longueur, **et objet** (écart nº 99) |
+| `src/core/use-cases/team-members/*.ts` | `create`, `update`, `delete`, `reorder`, `setStatus`, `list` (+ `listPublished`), `get` |
+| `src/core/testing/in-memory-team-member.repository.ts` | Dépôt en mémoire — n'importe que le domaine |
+| `src/infrastructure/supabase/mappers/team-member.mapper.ts` | Le plus simple des quatre : que des scalaires |
+| `src/infrastructure/supabase/repositories/team-member.repository.ts` | Liste blanche de tri, `reorder_rows('team_members')`, échappement PostgREST |
+| `src/server/deps/team-member.deps.ts` | Un seul dépôt : rien à vérifier ailleurs avant d'écrire |
+| `src/server/actions/team.actions.ts` | 5 actions. Étiquettes `cms:equipe` et **`cms:page:a-propos`** (nouvelle) |
+| `src/server/queries/team.query.ts` | `getMembresEquipePublies` + le raisonnement de l'écart nº 95 |
+| `src/components/dashboard/team/team-member-form.tsx` | 4 champs, conversion `"" → null` de `bio`, avertissement vivant sur le nom |
+| `src/components/dashboard/team/team-client.tsx` | Liste : 5 colonnes, 3 filtres, actions groupées, réordonnancement, **bandeau qui dit ce que le SITE montre** |
+| `src/components/dashboard/team/team-member-editeur.tsx` | Fiche : publier / dépublier / supprimer, « Voir sur le site » conditionnel |
+| `src/app/(dashboard)/dashboard/equipe/{,nouveau/,[id]/}page.tsx` | Les trois écrans. L'entrée de navigation existait depuis le Lot 5 et menait à une 404 |
+| `src/components/cards/team-member-card.tsx` | Carte publique, extraite de `/a-propos` |
+| `src/app/(site)/a-propos/page.tsx` | **Bascule** : `async`, `force-dynamic`, section conditionnelle, ancre `#equipe` |
+| `src/content/equipe.ts` | En-tête mis à jour. ⚠️ **`rapports` y est TOUJOURS utilisé par `/impact`** — ne pas supprimer ce fichier |
+
+### Recette exécutée — 533 vérifications, 0 échec
+
+| Suite | Vérifs | Portée |
+|---|---|---|
+| 1 · code pur | 207 | marqueur (13), schémas (28) + **70 charges hostiles contre 7 schémas**, création, publication, porte de derrière, suppression / réordonnancement, lectures, mappers, matrice RBAC |
+| 2 · infrastructure (base réelle) | 69 | dépôt, tri, recherche, RLS anonyme, `guard_publish` (ADB01) sur un vrai compte éditeur, `reorder_rows` + liste blanche (ADB04), clé étrangère de la photo |
+| 3 · HTTP (`next start`) | 51 | **la section « L'équipe » a bien disparu**, aucune fuite du marqueur, 10 pages publiques intactes, gardes anonymes, 404, en-têtes |
+| 4 · parcours navigateur (CDP) | 102 | liste + bandeau, « Publier » désactivé avec son motif, saisie du nom → publication → **la section réapparaît sur `/a-propos`**, porte de derrière refusée, dépublication puis marqueur accepté, création, `bio` vidée → `null`, réordonnancement, éditeur sans publier / supprimer, audit, suppression |
+| 5 · responsive / a11y | 104 | 4 écrans × 5 largeurs (débordement, 44 px, 16 px, contraste AA), thème sombre, zoom 200 %, structure et libellés |
+
+Les cinq suites ont été rejouées d'affilée sur l'arbre final. Banc entièrement
+retiré ensuite ; base vérifiée identique à son état de départ (3 fiches,
+brouillon, marqueur, positions 1-2-3, aucune photo, 1 seul profil).
+
+### Trois points retenus
+
+1. **La règle protège le VISITEUR, pas le site contre ses éditeurs.** C'est ce
+   qui la distingue de `guard_publish` : elle ne dépend d'aucun rôle, et un
+   super administrateur y est soumis. Mesuré : la base, seule, laisse
+   parfaitement publier une fiche au marqueur (suite 2, C14/C15). **La garde vit
+   dans le domaine, et toute écriture qui court-circuite les cas d'usage la
+   contourne.**
+2. **Retirer un avertissement d'une page publique n'est pas le supprimer.** Le
+   badge « Nom et photo à fournir » s'adressait aux visiteurs ; il s'adresse
+   maintenant à qui peut agir. La question posée à chaque bascule du Lot 8 —
+   « masquer, effacer ou signaler ? » — a ici une quatrième réponse :
+   **déplacer**.
+3. **Une recette doit se nettoyer à l'ENTRÉE autant qu'à la sortie**
+   (découverte nº 40).
+
+### Points de vigilance légués
+
+- **La section « L'équipe » de `/a-propos` n'apparaît plus** (écart nº 95).
+  Marche à suivre : renseigner les trois noms dans `/dashboard/equipe`, puis
+  publier les fiches. La garde empêche d'oublier la première moitié.
+- **Les trois photos `public/images/a-propos/equipe-*.jpeg` ne sont plus
+  affichées** (écart nº 97). Elles restent sur le disque ; les téléverser dans
+  la médiathèque puis les choisir dans le champ « Photo ».
+- **`/a-propos` affiche toujours « [À COMPLÉTER] » une fois**, dans la section
+  « Gouvernance » : c'est `legal.registrationNumber` (`site-config.ts`), le
+  numéro d'enregistrement de l'association. **Antérieur à ce lot et légitime** —
+  l'audit (§4.9) exige que le champ existe, et inventer un numéro serait pire.
+  La recette l'assertionne précisément (A08) : toute autre occurrence du
+  marqueur ferait échouer la mesure.
+- **Relevé hors périmètre sur `/a-propos`, à traiter au Lot 12** : 5 cibles
+  sous 44 px dans l'en-tête et le pied de page (lien d'évitement 32×16, bouton
+  « Don » 73×36, liens de contact et de bas de page), et le libellé
+  « WhatsApp » à **4,14 de contraste** au lieu de 4,5. Mesuré, affiché par la
+  suite 5, **non compté comme échec** : ces éléments ont été livrés avant ce
+  lot.
+- **`audit_logs` est passé de 26 à 95 entrées**, dont **53 `team_member.*`
+  produites par cette recette** (voir « Environnement »). Non purgées
+  volontairement — purge unique prévue au Lot 13.
+- **Le trou de l'écart nº 99 (message d'objet) existe dans
+  `programme.schema.ts`, `article.schema.ts` et `testimonial.schema.ts`**, comme
+  celui de l'écart nº 90. À traiter ensemble au Lot 16.
+
+---
+
+## Ce qu'a livré le Lot 8E (détail)
+
+### Fichiers
+
+| Fichier | Rôle |
+|---|---|
+| `src/core/cms/entities/icon-name.ts` | **NOUVEAU PRIMITIF PARTAGÉ** : `ICON_NAMES`, `IconName`, `isIconName`, `ICON_NAME_REPLI`. Aucun `import` — c'est ce qui permet à un schéma Zod de s'y référer (écart nº 101) |
+| `src/core/cms/entities/visibility.ts` | `VISIBILITY_LABELS`, `libelleVisibilite()`. Écrit **en vue du Lot 8G** : `stats` porte la même colonne `is_visible` |
+| `src/core/cms/entities/core-value.ts` | `CoreValue`, `CreateCoreValue`, `UpdateCoreValue`. `icon: IconName` — **seul endroit du projet où la garantie existe** |
+| `src/core/cms/ports/core-value.port.ts` | `findVisible` et `setVisibility`, pas `findPublished` / `setStatus` : le vocabulaire du port suit celui de la table |
+| `src/core/cms/schemas/core-value.schema.ts` | 7 schémas. `z.enum(ICON_NAMES)` + `z.enum(MEDIA_TONES)` — aucune chaîne libre. Messages français aux trois niveaux d'emblée |
+| `src/core/use-cases/core-values/*.ts` | `create`, `update`, `delete`, `reorder`, `setVisibility`, `list` (+ `listVisible`), `get` |
+| `src/core/testing/in-memory-core-value.repository.ts` | Dépôt en mémoire — ignore `filter.status` comme le vrai (écart nº 109) |
+| `src/infrastructure/supabase/mappers/core-value.mapper.ts` | Le seul mapper à conversion non triviale : le repli d'icône (écart nº 110) |
+| `src/infrastructure/supabase/repositories/core-value.repository.ts` | Liste blanche de tri (`is_visible` incluse, `status` impossible), `reorder_rows('core_values')` |
+| `src/components/ui-ext/icon-registry.ts` | **MODIFIÉ** : importe la liste du domaine, `ICONS: Record<IconName, LucideIcon>` — le typage qui interdit la divergence |
+| `src/server/deps/core-value.deps.ts` | Un seul dépôt : `core_values` n'a aucune clé étrangère |
+| `src/server/actions/values.actions.ts` | 5 actions. **TROIS étiquettes** : `cms:valeurs`, `cms:page:accueil`, `cms:page:a-propos` |
+| `src/server/queries/values.query.ts` | `getValeursAffichees` — appelée par **deux** pages |
+| `src/components/dashboard/feedback/visibility-badge.tsx` | 2 états. **Aucune couleur inventée** : les deux couples viennent de `<StatusBadge>`, où ils ont été mesurés |
+| `src/components/dashboard/values/value-form.tsx` | 4 champs, dont les deux grilles de choix. **Aperçu rendu par le VRAI `<ValueCard>`** |
+| `src/components/dashboard/values/values-client.tsx` | Liste : 5 colonnes, 2 filtres, bandeau qui dit ce que **les deux pages** montrent |
+| `src/components/dashboard/values/value-editeur.tsx` | Fiche : afficher / masquer / supprimer, avertissement « dernière valeur affichée » |
+| `src/app/(dashboard)/dashboard/valeurs/{,nouveau/,[id]/}page.tsx` | Les trois écrans. L'entrée de navigation existait depuis le Lot 5 (écart nº 25) et menait à une 404 |
+| `src/lib/nombres.ts` | `enLettres()`, `accorde()` — le titre dérivé (écart nº 107) |
+| `src/components/cards/value-card.tsx` | **MODIFIÉ** : lit `CoreValue`, résout l'icône par `<ContentIcon>`. Balisage identique à l'octet près |
+| `src/app/(site)/page.tsx` · `src/app/(site)/a-propos/page.tsx` | **Bascule** : lecture en base, section conditionnelle, ancre `#valeurs`, titre dérivé sur `/a-propos` |
+| `src/content/biographie.ts` | **MODIFIÉ** : `DomaineEngagement.icon` devient un NOM (écart nº 111) |
+| `src/content/valeurs.ts` | En-tête mis à jour — plus importé, gardé comme référence jusqu'au Lot 16 |
+
+### Recette exécutée — 631 vérifications, 0 échec
+
+| Suite | Vérifs | Portée |
+|---|---|---|
+| 1 · code pur | 285 | registre d'icônes (37), **7 schémas × 10 charges hostiles**, `icon` contraint (35), création, neutralisation d'`isVisible`, visibilité + idempotence, suppression / réordonnancement, lectures, mappers, matrice RBAC, titre dérivé, libellés |
+| 2 · infrastructure (base réelle) | 75 | **les 4 lignes comparées champ par champ à `src/content/valeurs.ts`**, RLS anonyme, ce que la base autorise à un éditeur, `reorder_rows` + liste blanche, **la base n'a aucune contrainte sur `icon`**, filtre `status` ignoré |
+| 3 · HTTP (`next start`) | 75 | les 4 valeurs rendues côté serveur sur **les deux pages**, titre dérivé, ancres, gardes anonymes, 12 pages publiques intactes, `/biographie` non régressée |
+| 4 · parcours navigateur (CDP) | 95 | liste + bandeau, masquage → **disparition des deux pages** et titre qui passe à « Trois », confirmation sur la dernière, création + aperçu vivant → « Cinq », éditeur bridé, POST direct refusé, réordonnancement visible des deux côtés, suppression, audit |
+| 5 · responsive / a11y | 101 | 5 écrans × 5 largeurs (débordement, 44 px, 16 px, contraste AA), thème sombre, zoom 200 %, structure, **les deux grilles de choix nommées et chaque option étiquetée** |
+
+Les cinq suites ont été rejouées d'affilée sur l'arbre final. Banc entièrement
+retiré ensuite ; base vérifiée identique à son état de départ (4 valeurs, contenu
+d'origine, toutes visibles, positions 1-4, 1 seul profil).
+
+### Trois points retenus
+
+1. **Un type mal placé est un trou de validation.** `tone` était validé par
+   énumération depuis le Lot 8A, `icon` ne l'était pas — et la seule cause était
+   l'étage où vivait la liste. Deux lots ont livré un champ que **n'importe
+   quelle chaîne traversait**. Quand une règle ne peut pas s'écrire là où elle
+   s'applique, ce n'est pas la règle qu'il faut abandonner : c'est la donnée
+   qu'il faut déplacer.
+2. **Un titre qui compte ce qu'il surmonte devient faux dès que la liste devient
+   modifiable.** « Quatre principes » était vrai en fichier TypeScript et
+   mensonger en base. Le CMS ne casse pas seulement les données qu'il déplace :
+   il casse **les phrases qui les décrivaient**. `/programmes` et l'accueil
+   portent le même défaut depuis le Lot 8A (écart nº 107).
+3. **Informer plutôt qu'interdire, quand l'état n'est que vide.** Le Lot 8D
+   refusait un état FAUX ; celui-ci autorise un état VIDE et le dit trois fois —
+   bandeau, confirmation, phrase sur la fiche. Confondre les deux aurait produit
+   une règle incohérente avec le reste du site.
+
+### Points de vigilance légués
+
+- **⚠️ Un ÉDITEUR peut retirer une valeur de l'accueil ET de « Qui sommes-nous »**
+  (écart nº 104). Mesuré, conforme à la matrice et à la RLS, **et probablement
+  à rediscuter** — c'est une décision de produit, pas un correctif de lot.
+- **`programme.schema.ts` accepte toujours n'importe quelle chaîne comme icône**
+  (écart nº 102). Le remède est écrit et éprouvé ; à appliquer au Lot 16, avec
+  les trous des écarts nº 90 et 99.
+- **`/programmes` annonce « Huit domaines d'intervention » et l'accueil « Voir
+  les 8 programmes »** — même défaut que le titre corrigé ici, depuis le
+  Lot 8A. `src/lib/nombres.ts` est prêt ; à traiter en rejouant la recette 8A.
+- **`audit_logs` est passé de 95 à 117 entrées**, dont 12 `core_value.*`
+  produites par cette recette. Non purgées volontairement — purge unique prévue
+  au Lot 13.
+- **Relevé hors périmètre, mesuré et affiché sans être compté** : à 390 px, 12
+  cibles sous 44 px sur l'accueil et 4 sur `/a-propos` (bouton « Don » 73×36,
+  liens de programmes 22 px de haut, coordonnées du pied de page), et
+  « WhatsApp » à **4,14 de contraste** au lieu de 4,5. **Ajout du Lot 8E** :
+  l'accueil **déborde horizontalement à 320 px** — coupables mesurés : les
+  cartes de témoignages (`<figure>`, 340 px) et la barre fixe du bas. Tout cela
+  a été livré avant ce lot ; à traiter au Lot 12.
+
+---
+
+## Prochaine étape : Lot 8F — questions fréquentes
+
+Voir la table des lots 8B → 8I du Rapport 2. Spécificités annoncées :
+`topic` (don / bénévolat / général), `bullets[]`, et **la génération du JSON-LD
+`FAQPage`** — ce qui en fait le premier lot dont la bascule touche des données
+structurées et non seulement du rendu. `faq_items` porte un `status` : le
+gabarit à quatre états des Lots 8A–8D redevient la référence, pas celui-ci.
+
+Ce que le Lot 8E lègue de réutilisable :
+
+- **le gabarit est stable sur cinq collections**, et il en existe désormais
+  **deux variantes** : à cycle éditorial (8A–8D, à reprendre pour 8F) et à
+  visibilité binaire (8E, à reprendre pour **8G**, qui partage la colonne
+  `is_visible` et l'absence de `stat:publish`). `visibility.ts` est déjà écrit
+  pour lui ;
+- **`icon-name.ts` est le modèle à suivre** dès qu'une liste de référence doit
+  être validée par un schéma : la liste descend dans `core/`, la présentation la
+  ré-exporte, et un `Record<Clé, Composant>` interdit la divergence à la
+  compilation ;
+- **`src/lib/nombres.ts` existe** : tout titre de section qui compte doit dériver
+  son nombre, jamais l'écrire ;
+- **le module CDP est à réécrire à chaque lot**, mais ses parades sont acquises :
+  dimensionnement de la cible (nº 31), `pointerdown` pour Radix (nº 30), attente
+  de condition (nº 33), saisie relue (nº 37), contexte isolé par rôle (nº 36),
+  casse des en-têtes (nº 39), purge à l'entrée (nº 40), **dimensionner avant de
+  chercher un `tbody` (nº 41)**, **borner présence et ordre à la section
+  (nº 42–43)** ;
+- **vérifier le disque AVANT de commencer** (nº 35 et ses deux compléments) :
+  regarder `npm-cache` en premier, puis `.next/dev`, puis `.next/cache`.
 
 ---
 

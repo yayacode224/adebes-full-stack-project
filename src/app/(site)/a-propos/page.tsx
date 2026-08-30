@@ -2,6 +2,7 @@ import { ArrowRight, Building, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { TeamMemberCard } from "@/components/cards/team-member-card";
 import { ValueCard } from "@/components/cards/value-card";
 import { Container } from "@/components/layout/container";
 import { PageHero } from "@/components/layout/page-hero";
@@ -9,12 +10,13 @@ import { MediaImage } from "@/components/media/media-image";
 import { JsonLd, breadcrumbJsonLd } from "@/components/seo/json-ld";
 import { Button } from "@/components/ui/button";
 import { CTABanner } from "@/components/ui-ext/cta-banner";
-import { PlaceholderBadge } from "@/components/ui-ext/placeholder-badge";
 import { Reveal } from "@/components/ui-ext/reveal";
 import { SectionHeading } from "@/components/ui-ext/section-heading";
-import { equipe, membrePhoto } from "@/content/equipe";
-import { valeurs } from "@/content/valeurs";
-import { legal, siteConfig, TODO } from "@/lib/site-config";
+import { accorde, enLettres } from "@/lib/nombres";
+import { legal, siteConfig } from "@/lib/site-config";
+import { resoudreMedias } from "@/server/queries/media.query";
+import { getMembresEquipePublies } from "@/server/queries/team.query";
+import { getValeursAffichees } from "@/server/queries/values.query";
 
 export const metadata: Metadata = {
   title: "Qui sommes-nous",
@@ -28,7 +30,50 @@ export const metadata: Metadata = {
   },
 };
 
-export default function AProposPage() {
+/**
+ * ⚠️  `force-dynamic` — TRANSITOIRE, À RETIRER AU LOT 15.
+ *
+ * La section « L'équipe » lit désormais la base. Sans cette directive, la page
+ * serait prérendue au build : publier une fiche depuis le dashboard ne
+ * changerait rien tant qu'un déploiement n'aurait pas eu lieu — et
+ * l'étiquette `cms:page:a-propos` que les Server Actions invalident déjà ne
+ * servirait à rien.
+ *
+ * Le raisonnement complet, et la marche à suivre au Lot 15, sont dans
+ * l'en-tête de `src/server/queries/team.query.ts`.
+ */
+export const dynamic = "force-dynamic";
+
+export default async function AProposPage() {
+  /*
+    L'équipe vient de la base au Lot 8D.
+
+    `getMembresEquipePublies()` rend TOUS les membres en ligne, triés par
+    position — l'ordre choisi dans le dashboard, qui se lit comme un
+    organigramme. Aucune coupe n'est faite ici, contrairement à l'accueil pour
+    les témoignages : la grille est en `lg:grid-cols-3` et absorbe une équipe
+    de n'importe quelle taille.
+
+    ⚠️  Cette liste est VIDE aujourd'hui : les trois fiches sont en brouillon.
+    C'est la donnée réelle, et la section ci-dessous disparaît en conséquence.
+    Le pourquoi est dans `server/queries/team.query.ts`.
+  */
+  const membres = await getMembresEquipePublies();
+
+  /*
+    Les valeurs viennent de la base au Lot 8E.
+
+    ⚠️  C'est exactement la même lecture que sur l'accueil, qui rend exactement
+    la même grille. `cache()` de React ne mutualise rien entre les deux : il
+    mémoïse sur la durée d'UN rendu, et les deux pages sont deux rendus. C'est
+    une requête chacune, sans conséquence sur quatre lignes.
+  */
+  const valeurs = await getValeursAffichees();
+
+  const portraits = await resoudreMedias(
+    membres.map((membre) => membre.photoMediaId),
+  );
+
   return (
     <>
       <JsonLd
@@ -108,77 +153,98 @@ export default function AProposPage() {
         </Container>
       </section>
 
-      {/* --- Valeurs --- */}
-      <section className="bg-card py-14 lg:py-20">
-        <Container size="wide">
-          <Reveal>
-            <SectionHeading
-              badge="Nos valeurs"
-              title="Quatre principes, appliqués au quotidien"
-              align="center"
-            />
-          </Reveal>
+      {/*
+        --- Valeurs ---
 
-          <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {valeurs.map((valeur, index) => (
-              <Reveal as="li" key={valeur.title} delay={index * 0.06}>
-                <ValueCard valeur={valeur} className="h-full" />
-              </Reveal>
-            ))}
-          </ul>
-        </Container>
-      </section>
+        La section entière disparaît s'il ne reste aucune valeur affichée —
+        même règle que la section « L'équipe » ci-dessous et que l'accueil.
+        Ce n'est pas le cas aujourd'hui : les quatre valeurs du seed sont
+        visibles et portent un contenu réel.
 
-      {/* --- Équipe --- */}
-      <section className="py-14 lg:py-20">
-        <Container size="wide">
-          <Reveal>
-            <SectionHeading
-              badge="L'équipe"
-              title="Celles et ceux qui portent l'association"
-              subtitle="Savoir qui dirige une association est un signal de confiance au moins aussi important qu'un chiffre d'impact."
-            />
-          </Reveal>
+        ⚠️  LE TITRE COMPTE CE QU'IL SURMONTE, ET LE NOMBRE EST DÉSORMAIS
+        DÉRIVÉ. Il était écrit en dur — « Quatre principes » — ce qui était
+        vrai tant que la liste vivait dans un fichier TypeScript modifié dans
+        le même commit. La liste étant maintenant modifiable depuis le
+        dashboard, le titre serait devenu faux à la première valeur ajoutée ou
+        masquée. Le raisonnement complet est dans `src/lib/nombres.ts`.
 
-          <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {equipe.map((membre, index) => (
-              <Reveal as="li" key={membre.id} delay={index * 0.06}>
-                <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card">
-                  <div className="relative aspect-[4/3] bg-muted">
-                    <MediaImage
-                      src={membrePhoto(membre.id)}
-                      alt={`Portrait de ${membre.name === TODO ? "un membre de l'équipe ADEBES" : membre.name}`}
-                      fill
-                      kind="portrait"
-                      tone="neutral"
-                      sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
-                    />
-                  </div>
+        Avec les quatre valeurs migrées, le rendu est identique au caractère
+        près.
 
-                  <div className="flex flex-1 flex-col gap-2 p-5">
-                    <p className="font-heading text-base font-semibold text-foreground">
-                      {membre.name}
-                    </p>
-                    <p className="text-sm font-medium text-primary">
-                      {membre.role}
-                    </p>
-                    {membre.bio ? (
-                      <p className="text-sm leading-relaxed text-muted-foreground">
-                        {membre.bio}
-                      </p>
-                    ) : null}
-                    {membre.placeholder ? (
-                      <PlaceholderBadge className="mt-auto w-fit">
-                        Nom et photo à fournir
-                      </PlaceholderBadge>
-                    ) : null}
-                  </div>
-                </div>
-              </Reveal>
-            ))}
-          </ul>
-        </Container>
-      </section>
+        ⚠️  `id="valeurs"` : l'ancre visée par « Voir sur « Qui sommes-nous » »
+        depuis la fiche du dashboard.
+      */}
+      {valeurs.length > 0 ? (
+        <section id="valeurs" className="bg-card py-14 lg:py-20">
+          <Container size="wide">
+            <Reveal>
+              <SectionHeading
+                badge="Nos valeurs"
+                title={`${enLettres(valeurs.length, { capitale: true })} ${accorde(valeurs.length, "principe appliqué", "principes, appliqués")} au quotidien`}
+                align="center"
+              />
+            </Reveal>
+
+            <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {valeurs.map((valeur, index) => (
+                <Reveal as="li" key={valeur.id} delay={index * 0.06}>
+                  <ValueCard valeur={valeur} className="h-full" />
+                </Reveal>
+              ))}
+            </ul>
+          </Container>
+        </section>
+      ) : null}
+
+      {/*
+        --- Équipe ---
+
+        La section entière disparaît s'il n'y a aucun membre en ligne. Même
+        règle qu'à l'accueil pour les témoignages et les actualités : un titre
+        « Celles et ceux qui portent l'association » suivi du vide serait pire
+        que son absence — il annoncerait un contenu manquant, sur la page dont
+        l'audit (§4.9) dit qu'elle est un signal de confiance pour un donateur.
+
+        ⚠️  C'EST LE CAS AUJOURD'HUI : les trois fiches sont en brouillon, et
+        cette section ne s'affiche donc plus. Ce qui disparaît avec elle, ce
+        sont trois cartes portant « [À COMPLÉTER] » et le badge « Nom et photo
+        à fournir » — un aveu d'incomplétude adressé aux VISITEURS. Ce rappel
+        n'a pas été supprimé, il a changé de destinataire : il est en tête de
+        `/dashboard/equipe`, où quelqu'un peut agir. Renseigner les trois noms
+        puis publier les fiches ramène la section.
+
+        L'ancre `#equipe` est pointée par le bouton « Voir sur le site » de la
+        fiche du dashboard, qui n'est rendu que sur une fiche publiée — donc
+        seulement quand cette section existe (invariant nº 2).
+      */}
+      {membres.length > 0 ? (
+        <section id="equipe" className="py-14 lg:py-20">
+          <Container size="wide">
+            <Reveal>
+              <SectionHeading
+                badge="L'équipe"
+                title="Celles et ceux qui portent l'association"
+                subtitle="Savoir qui dirige une association est un signal de confiance au moins aussi important qu'un chiffre d'impact."
+              />
+            </Reveal>
+
+            <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {membres.map((membre, index) => (
+                <Reveal as="li" key={membre.id} delay={index * 0.06}>
+                  <TeamMemberCard
+                    membre={membre}
+                    photo={
+                      membre.photoMediaId
+                        ? portraits.get(membre.photoMediaId)
+                        : null
+                    }
+                  />
+                </Reveal>
+              ))}
+            </ul>
+          </Container>
+        </section>
+      ) : null}
 
       {/* --- Gouvernance --- */}
       <section className="border-t border-border bg-card py-14 lg:py-20">

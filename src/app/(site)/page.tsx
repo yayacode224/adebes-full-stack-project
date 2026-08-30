@@ -20,18 +20,17 @@ import { CTABanner } from "@/components/ui-ext/cta-banner";
 import { FAQAccordion } from "@/components/ui-ext/faq-accordion";
 import { Reveal } from "@/components/ui-ext/reveal";
 import { SectionHeading } from "@/components/ui-ext/section-heading";
-import { faq } from "@/content/faq";
+import { texteReponse } from "@/core/cms/entities/faq-item";
 import { homeStats } from "@/content/stats";
-import { valeurs } from "@/content/valeurs";
 import {
   getArticlesPublies,
   getCategoriesParId,
 } from "@/server/queries/articles.query";
+import { getFaqAccueil } from "@/server/queries/faq.query";
 import { resoudreMedias } from "@/server/queries/media.query";
 import { getProgrammesPublies } from "@/server/queries/programmes.query";
 import { getTemoignagesPublies } from "@/server/queries/testimonials.query";
-
-const faqAccueil = faq.filter((item) => item.topic !== "benevolat").slice(0, 4);
+import { getValeursAffichees } from "@/server/queries/values.query";
 
 /**
  * ⚠️  `force-dynamic` — TRANSITOIRE, À RETIRER AU LOT 15.
@@ -72,6 +71,36 @@ export default async function HomePage() {
   const temoignages = (await getTemoignagesPublies()).slice(0, 3);
 
   /*
+    Les valeurs viennent de la base au Lot 8E.
+
+    Aucune coupe ici, contrairement aux témoignages : `getValeursAffichees()`
+    rend les valeurs marquées comme visibles, dans l'ordre choisi au dashboard,
+    et la grille `lg:grid-cols-4` en absorbe un nombre quelconque.
+
+    ⚠️  C'est la SEULE lecture de cette page partagée avec une autre :
+    « Qui sommes-nous » appelle exactement la même fonction et rend exactement
+    la même grille. Toute modification de section doit être portée aux deux, et
+    `values.actions.ts` invalide bien les deux étiquettes de page.
+  */
+  const valeurs = await getValeursAffichees();
+
+  /*
+    Les questions fréquentes viennent de la base au Lot 8F.
+
+    `getFaqAccueil()` applique la règle qui était écrite ici avant ce lot —
+    « toutes sauf le bénévolat, les quatre premières » — mais elle est
+    désormais dans le domaine (`selectionAccueil`), parce que l'écran
+    `/dashboard/faq` doit dire la même chose à qui réordonne la liste.
+
+    ⚠️  La section entière disparaît s'il ne reste aucune question publiée hors
+    bénévolat. Même règle que pour les actualités, les témoignages et les
+    valeurs — et elle compte doublement ici : sans elle, la page émettrait un
+    JSON-LD `FAQPage` VIDE, c'est-à-dire une déclaration fausse envoyée aux
+    moteurs de recherche.
+  */
+  const faqAccueil = await getFaqAccueil();
+
+  /*
     Une seule résolution de médias pour les trois sections : `resoudreMedias`
     dédoublonne et mémoïse sur la clé, mais trois appels distincts feraient
     trois requêtes. Les couvertures des programmes, celles des articles et les
@@ -87,11 +116,28 @@ export default async function HomePage() {
     <>
       <JsonLd data={ngoJsonLd()} />
       <JsonLd data={websiteJsonLd()} />
-      <JsonLd
-        data={faqJsonLd(
-          faqAccueil.map(({ question, answer }) => ({ question, answer })),
-        )}
-      />
+
+      {/*
+        ⚠️  `texteReponse` compose le paragraphe ET les puces.
+
+        Le balisage doit contenir ce que le visiteur lit : c'est la consigne de
+        Google sur `FAQPage`, et l'écart n'était pas théorique — « Comment faire
+        un don à ADEBES ? » énumère ses quatre canaux en puces, dont aucun
+        n'entrait dans la réponse déclarée. Voir l'entité `FaqItem`.
+
+        Aucun balisage n'est émis si la liste est vide : un `FAQPage` sans
+        `mainEntity` est une déclaration fausse.
+      */}
+      {faqAccueil.length > 0 ? (
+        <JsonLd
+          data={faqJsonLd(
+            faqAccueil.map((item) => ({
+              question: item.question,
+              answer: texteReponse(item),
+            })),
+          )}
+        />
+      ) : null}
 
       <HomeHero />
 
@@ -162,26 +208,43 @@ export default async function HomePage() {
         </Container>
       </section>
 
-      {/* --- Valeurs --- */}
-      <section className="bg-card py-16 lg:py-24">
-        <Container size="wide">
-          <Reveal>
-            <SectionHeading
-              badge="Nos valeurs"
-              title="Ce qui guide chacune de nos actions"
-              align="center"
-            />
-          </Reveal>
+      {/*
+        --- Valeurs ---
 
-          <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {valeurs.map((valeur, index) => (
-              <Reveal as="li" key={valeur.title} delay={index * 0.06}>
-                <ValueCard valeur={valeur} className="h-full" />
-              </Reveal>
-            ))}
-          </ul>
-        </Container>
-      </section>
+        La section entière disparaît s'il ne reste aucune valeur affichée. Même
+        règle que pour les actualités, les témoignages et l'équipe : un titre
+        « Ce qui guide chacune de nos actions » suivi du vide serait pire que
+        son absence.
+
+        Ce n'est PAS le cas aujourd'hui — les quatre valeurs du seed portent
+        `is_visible = true` et un contenu réel — mais le cas est atteignable
+        depuis `/dashboard/valeurs`, et l'écran le dit avant comme après.
+
+        ⚠️  `id="valeurs"` : l'ancre visée par « Voir sur l'accueil » depuis la
+        fiche du dashboard. Sans elle, le lien mènerait en haut de page et
+        laisserait chercher la section.
+      */}
+      {valeurs.length > 0 ? (
+        <section id="valeurs" className="bg-card py-16 lg:py-24">
+          <Container size="wide">
+            <Reveal>
+              <SectionHeading
+                badge="Nos valeurs"
+                title="Ce qui guide chacune de nos actions"
+                align="center"
+              />
+            </Reveal>
+
+            <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {valeurs.map((valeur, index) => (
+                <Reveal as="li" key={valeur.id} delay={index * 0.06}>
+                  <ValueCard valeur={valeur} className="h-full" />
+                </Reveal>
+              ))}
+            </ul>
+          </Container>
+        </section>
+      ) : null}
 
       {/* --- Programmes --- */}
       <section className="py-16 lg:py-24">
@@ -301,35 +364,62 @@ export default async function HomePage() {
         </section>
       ) : null}
 
-      {/* --- FAQ --- */}
-      <section className="bg-card py-16 lg:py-24">
-        <Container size="narrow">
-          <Reveal>
-            <SectionHeading
-              badge="Questions fréquentes"
-              title="Vous vous posez ces questions"
-              align="center"
-            />
-          </Reveal>
+      {/*
+        --- FAQ ---
 
-          <Reveal delay={0.1}>
-            <FAQAccordion items={faqAccueil} className="mt-8" />
-          </Reveal>
+        La section entière disparaît s'il ne reste aucune question publiée hors
+        bénévolat. Même règle que pour les actualités, les témoignages et les
+        valeurs : un titre « Vous vous posez ces questions » suivi du vide
+        annoncerait un contenu manquant.
 
-          <Reveal delay={0.15}>
-            <p className="mt-8 text-center text-sm text-muted-foreground">
-              Une autre question ?{" "}
-              <Link
-                href="/contact"
-                className="font-medium text-primary underline-offset-4 hover:underline"
-              >
-                Écrivez-nous
-              </Link>
-              .
-            </p>
-          </Reveal>
-        </Container>
-      </section>
+        ⚠️  `id="faq"` : l'ancre visée par « Voir sur le site » depuis la fiche
+        du dashboard. Sans elle, le lien mènerait en haut de page et laisserait
+        chercher la section.
+      */}
+      {faqAccueil.length > 0 ? (
+        <section id="faq" className="bg-card py-16 lg:py-24">
+          <Container size="narrow">
+            <Reveal>
+              <SectionHeading
+                badge="Questions fréquentes"
+                title="Vous vous posez ces questions"
+                align="center"
+              />
+            </Reveal>
+
+            <Reveal delay={0.1}>
+              <FAQAccordion items={faqAccueil} className="mt-8" />
+            </Reveal>
+
+            <Reveal delay={0.15}>
+              <p className="mt-8 text-center text-sm text-muted-foreground">
+                Une autre question ?{" "}
+                {/*
+                  ⚠️  `inline-flex min-h-11` : ce lien est une CIBLE TACTILE.
+
+                  Mesuré à 89 × 17 px par la recette de ce lot, très en dessous
+                  des 44 px de la règle 4 du §12. C'est le même arbitrage qu'à
+                  l'écart nº 112 (Lot 8E) : la règle ne connaît pas d'exception
+                  pour un lien « au sein d'une phrase », et se donner une
+                  dispense au moment où elle arrange le code qu'on vient
+                  d'écrire, c'est cesser de mesurer.
+
+                  Le lien reste dans le fil du texte ; seule la hauteur de
+                  ligne augmente, ce qui est le prix visible et assumé d'une
+                  cible atteignable au pouce.
+                */}
+                <Link
+                  href="/contact"
+                  className="inline-flex min-h-11 items-center px-1 font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  Écrivez-nous
+                </Link>
+                .
+              </p>
+            </Reveal>
+          </Container>
+        </section>
+      ) : null}
 
       <CTABanner />
     </>

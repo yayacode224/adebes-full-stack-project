@@ -3,14 +3,33 @@ import { TODO } from "@/lib/site-config";
 /**
  * Équipe et gouvernance.
  *
+ * ═══════════════════════════════════════════════════════════════════════════
+ *  ⚠️  `equipe` N'EST PLUS IMPORTÉ PAR AUCUNE PAGE DEPUIS LE LOT 8D
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Les membres de l'équipe viennent de la base (`server/queries/team.query.ts`)
+ * et se gèrent dans `/dashboard/equipe`. Le tableau reste — comme
+ * `programmes.ts`, `actualites.ts` et `temoignages.ts` — pour sa valeur de
+ * référence : c'est ici qu'est écrite la règle « aucun nom n'est inventé », que
+ * `setTeamMemberStatus` applique désormais en refusant de publier une fiche
+ * dont le nom est resté « [À COMPLÉTER] ». Il sera retiré au Lot 16.
+ *
+ * `membrePhoto()` n'a plus d'appelant, et ce n'est pas un oubli : sa convention
+ * de nommage est indexée sur l'identifiant de CE tableau, qui n'existe plus en
+ * base. Le raisonnement complet est dans l'en-tête de
+ * `src/components/cards/team-member-card.tsx`. Les trois fichiers
+ * `equipe-*.jpeg` restent dans `public/images/a-propos/` : pour les réutiliser,
+ * les téléverser dans la médiathèque et les choisir dans le champ « Photo ».
+ *
+ * ⚠️  `rapports`, EN REVANCHE, EST TOUJOURS UTILISÉ par `/impact`. Il migrera
+ * vers la table `annual_reports` à son propre lot ; ne pas supprimer ce fichier
+ * avant.
+ *
+ * ---------------------------------------------------------------------------
  * L'audit note (§4.9) l'absence totale d'information institutionnelle. Pour un
  * donateur, savoir qui dirige l'association est un signal de confiance au moins
  * aussi fort qu'un chiffre d'impact.
  *
  * Les fiches ci-dessous sont des emplacements : aucun nom n'est inventé.
- * Remplacez `name` et `role`, déposez la photo correspondante dans
- * `public/images/a-propos/` sous la forme `equipe-prenom-nom.jpg`, puis retirez
- * `placeholder`.
  */
 
 export type MembreEquipe = {

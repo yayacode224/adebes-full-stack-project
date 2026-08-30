@@ -1,14 +1,7 @@
-import {
-  Briefcase,
-  Globe,
-  HardHat,
-  HeartPulse,
-  Landmark,
-  Sprout,
-  type LucideIcon,
-} from "lucide-react";
+import { Globe, HeartPulse, type LucideIcon } from "lucide-react";
 
 import type { MediaTone } from "@/components/media/media-placeholder";
+import type { IconName } from "@/core/cms/entities/icon-name";
 
 /**
  * Biographie de M. Tana TEBOH Taduis.
@@ -81,10 +74,30 @@ export const biographie = {
   ],
 } as const;
 
+/**
+ * Un domaine d'activité, rendu par `<ValueCard>`.
+ *
+ * ---------------------------------------------------------------------------
+ * ⚠️  `icon` EST UN NOM DEPUIS LE LOT 8E, PAS UN COMPOSANT
+ * ---------------------------------------------------------------------------
+ * `<ValueCard>` sert deux collections sans rapport : les valeurs de
+ * l'association, désormais en base (`core_values`), et les quatre domaines
+ * ci-dessous, qui restent dans ce fichier — ils décrivent le parcours d'une
+ * personne, pas du contenu éditorial, et ne figurent dans aucun lot du CMS.
+ *
+ * La carte ayant basculé sur la convention du projet — un NOM d'icône résolu
+ * au rendu par `<ContentIcon>` —, ces quatre entrées la suivent. Le rendu est
+ * identique : ce sont les mêmes icônes, désignées autrement.
+ *
+ * ⚠️  `engagementsBiographie`, plus bas, garde des COMPOSANTS. Ce n'est pas un
+ * oubli : cette liste-là ne passe pas par `<ValueCard>`, elle est rendue par un
+ * JSX écrit à la main dans `/biographie`. La convertir aurait été un
+ * changement sans nécessité dans un lot qui ne la concerne pas.
+ */
 export type DomaineEngagement = {
   title: string;
   description: string;
-  icon: LucideIcon;
+  icon: IconName;
   tone: MediaTone;
 };
 
@@ -94,28 +107,28 @@ export const domainesEngagement: DomaineEngagement[] = [
     title: "Engagement politique",
     description:
       "Homme politique, engagé dans la vie publique et le débat citoyen au Cameroun.",
-    icon: Landmark,
+    icon: "Landmark",
     tone: "navy",
   },
   {
     title: "Agriculture",
     description:
       "Investisseur dans le secteur agricole, moteur de production et d'emploi local.",
-    icon: Sprout,
+    icon: "Sprout",
     tone: "green",
   },
   {
     title: "Bâtiment et travaux publics",
     description:
       "Investisseur dans le bâtiment et les travaux publics, au service des infrastructures.",
-    icon: HardHat,
+    icon: "HardHat",
     tone: "blue",
   },
   {
     title: "Opérateur économique",
     description:
       "Acteur du tissu économique camerounais, à travers plusieurs secteurs d'activité.",
-    icon: Briefcase,
+    icon: "Briefcase",
     tone: "orange",
   },
 ];

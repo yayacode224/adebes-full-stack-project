@@ -15,8 +15,9 @@ import { FAQAccordion } from "@/components/ui-ext/faq-accordion";
 import { Reveal } from "@/components/ui-ext/reveal";
 import { SectionHeading } from "@/components/ui-ext/section-heading";
 import { ContentIcon } from "@/components/ui-ext/content-icon";
-import { faqByTopic } from "@/content/faq";
+import { texteReponse } from "@/core/cms/entities/faq-item";
 import { contact } from "@/lib/site-config";
+import { getFaqParSujet } from "@/server/queries/faq.query";
 import { getProgrammesPublies } from "@/server/queries/programmes.query";
 
 export const metadata: Metadata = {
@@ -31,8 +32,6 @@ export const metadata: Metadata = {
     url: "/don",
   },
 };
-
-const faqDon = faqByTopic("don");
 
 /**
  * Moyens de paiement.
@@ -76,6 +75,16 @@ export const dynamic = "force-dynamic";
 
 export default async function DonPage() {
   const programmes = await getProgrammesPublies();
+
+  /*
+    Les questions du sujet « Dons » viennent de la base au Lot 8F.
+
+    Le filtrage par sujet est fait par le dépôt, pas ici : le sujet DÉCIDE de la
+    page, et cette page affiche la FAQ des dons — pas une sous-partie d'une
+    liste générale.
+  */
+  const faqDon = await getFaqParSujet("don");
+
   return (
     <>
       <JsonLd
@@ -84,11 +93,22 @@ export default async function DonPage() {
           { label: "Faire un don", href: "/don" },
         ])}
       />
-      <JsonLd
-        data={faqJsonLd(
-          faqDon.map(({ question, answer }) => ({ question, answer })),
-        )}
-      />
+
+      {/*
+        ⚠️  `texteReponse` compose le paragraphe ET les puces — voir l'entité
+        `FaqItem`. Et aucun balisage n'est émis si la liste est vide : un
+        `FAQPage` sans `mainEntity` est une déclaration fausse.
+      */}
+      {faqDon.length > 0 ? (
+        <JsonLd
+          data={faqJsonLd(
+            faqDon.map((item) => ({
+              question: item.question,
+              answer: texteReponse(item),
+            })),
+          )}
+        />
+      ) : null}
 
       <PageHero
         eyebrow="Faire un don"
@@ -214,35 +234,53 @@ export default async function DonPage() {
         </Container>
       </section>
 
-      {/* --- FAQ dons --- */}
-      <section className="py-14 lg:py-20">
-        <Container size="narrow">
-          <Reveal>
-            <SectionHeading
-              badge="Questions fréquentes"
-              title="Vos questions sur les dons"
-              align="center"
-            />
-          </Reveal>
+      {/*
+        --- FAQ dons ---
 
-          <Reveal delay={0.1}>
-            <FAQAccordion items={faqDon} className="mt-8" />
-          </Reveal>
+        La section entière disparaît s'il n'y a aucune question publiée sur ce
+        sujet. Même règle que sur l'accueil, et pour la même raison : un titre
+        « Vos questions sur les dons » suivi du vide annoncerait un contenu
+        manquant, et le balisage déclarerait une FAQ sans question.
 
-          <Reveal delay={0.15}>
-            <p className="mt-8 text-center text-sm text-muted-foreground">
-              Vous préférez donner de votre temps ?{" "}
-              <Link
-                href="/benevolat"
-                className="font-medium text-primary underline-offset-4 hover:underline"
-              >
-                Devenez bénévole
-              </Link>
-              .
-            </p>
-          </Reveal>
-        </Container>
-      </section>
+        ⚠️  `id="faq"` : l'ancre visée par « Voir sur le site » depuis la fiche
+        du dashboard.
+      */}
+      {faqDon.length > 0 ? (
+        <section id="faq" className="py-14 lg:py-20">
+          <Container size="narrow">
+            <Reveal>
+              <SectionHeading
+                badge="Questions fréquentes"
+                title="Vos questions sur les dons"
+                align="center"
+              />
+            </Reveal>
+
+            <Reveal delay={0.1}>
+              <FAQAccordion items={faqDon} className="mt-8" />
+            </Reveal>
+
+            <Reveal delay={0.15}>
+              <p className="mt-8 text-center text-sm text-muted-foreground">
+                Vous préférez donner de votre temps ?{" "}
+                {/*
+                  ⚠️  `inline-flex min-h-11` — même correctif que sur l'accueil,
+                  et même motif : mesuré à 123 × 17 px par la recette de ce lot.
+                  Voir l'écart nº 112 (Lot 8E) et le commentaire jumeau dans
+                  `src/app/(site)/page.tsx`.
+                */}
+                <Link
+                  href="/benevolat"
+                  className="inline-flex min-h-11 items-center px-1 font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  Devenez bénévole
+                </Link>
+                .
+              </p>
+            </Reveal>
+          </Container>
+        </section>
+      ) : null}
     </>
   );
 }
