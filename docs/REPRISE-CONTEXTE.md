@@ -49,7 +49,7 @@ mémoire sur leur contenu.
 
 ---
 
-## État au terme du Lot 8F
+## État au terme du Lot 8G
 
 ### Lots livrés et recettés
 
@@ -69,6 +69,7 @@ mémoire sur leur contenu.
 | 8D | Équipe de bout en bout : domaine, **garde sur le marqueur « [À COMPLÉTER] » à la publication**, 5 actions, 3 écrans, bascule de `/a-propos` | ✅ 207 tests purs + 69 sur base réelle + 51 HTTP + 102 parcours navigateur + 104 mesures responsive = **533, 0 échec** |
 | 8E | Valeurs de bout en bout : **première collection sans cycle éditorial** (`is_visible`), **liste des icônes descendue dans le domaine** → `icon` enfin validé par énumération, 5 actions, 3 écrans, bascule de **deux** pages publiques | ✅ 285 tests purs + 75 sur base réelle + 75 HTTP + 95 parcours navigateur + 101 mesures responsive = **631, 0 échec** |
 | 8F | Questions fréquentes de bout en bout : **premier lot dont la bascule touche des données STRUCTURÉES** (JSON-LD `FAQPage`), `topic` qui décide de la page, `bullets[]` facultatives, 5 actions, 3 écrans, bascule de **trois** pages publiques | ✅ 118 tests purs + 59 sur base réelle + 74 HTTP + 57 parcours navigateur + 68 mesures responsive = **376, 0 échec** |
+| 8G | Chiffres clés de bout en bout : **l'invariant nº 1 rendu SAISISSABLE** (`value` nullable, « — » jamais `0`), `key` dérivée et immuable, `to_confirm` interne, 5 actions, 3 écrans, bascule de **deux** pages dont `/impact` qui était **entièrement statique** | ✅ 265 tests purs + 121 sur base réelle + 113 HTTP + 107 parcours navigateur + 134 mesures responsive = **740, 0 échec** |
 
 ### Environnement (déjà configuré, ne pas refaire)
 
@@ -90,11 +91,15 @@ mémoire sur leur contenu.
   téléversé son premier fichier réel depuis `/dashboard/mediatheque`. Les
   recettes ne le touchent pas et n'en créent aucun. (Avant cela la table était
   vide, ainsi que les deux buckets.)
-- **`audit_logs` : 117 entrées — INCHANGÉ depuis le Lot 8E.** La recette du Lot
-  8F a purgé les siennes en fin d'exécution, par `actor_id` (découverte nº 21),
-  et le contrôle final mesure **0 entrée `faq_item.*`** en base. C'est le
-  premier lot du Lot 8 à ne rien laisser derrière lui, et c'est la conduite à
-  reprendre.
+- **`audit_logs` : 138 entrées — inchangé PAR LA RECETTE du Lot 8G.** Mesuré à
+  138 au démarrage de la recette comme à sa fin, et **0 entrée `stat.*`** au
+  contrôle final : la suite 4 en a réellement produit 9 par ses mutations, et
+  les a purgées par `actor_id`. Deuxième lot consécutif à ne rien laisser
+  derrière lui ; c'est la conduite à reprendre.
+  ⚠️  **L'écart avec les 117 du Lot 8F ne vient PAS des recettes** : 21 entrées
+  se sont ajoutées entre les deux lots, produites par l'usage propre de
+  l'utilisateur sur le dashboard. Rien à corriger, mais à savoir avant de
+  s'alarmer d'un compteur qui a bougé.
   Rappel du détail antérieur, à purger au Lot 13 : 16 entrées appartiennent au
   compte de l'utilisateur, 53 sont les `team_member.*` du Lot 8D, 12 les
   `core_value.*` du Lot 8E, 17 les résidus du Lot 7.
@@ -134,9 +139,13 @@ Aucun harnais de test n'est installé (proposé, non retenu). Procédé employé
   `scrollWidth`. Chrome est présent sur la machine
   (`C:\Program Files\Google\Chrome\Application\chrome.exe`) ; Edge aussi.
 
-  Prévoir ~600 ms après `Page.loadEventFired` avant de mesurer : l'hydratation
-  doit être terminée, sinon les états clients (rétraction, tiroir) sont lus
-  trop tôt.
+  ⚠️  **NE PAS attendre une durée après `Page.loadEventFired`** — ce fichier
+  conseillait « ~600 ms », c'est-à-dire exactement ce que la découverte nº 33
+  interdit. Attendre la MARQUE de React sur le DOM
+  (`Object.keys(el).some(k => k.startsWith('__reactFiber'))`), et lever une
+  erreur nommée si elle n'apparaît pas : une page non hydratée est un document
+  MORT sur lequel aucun clic n'a d'effet, et le symptôme ressemble trait pour
+  trait à un composant défectueux (découverte nº 48).
 - **Les scripts de recette doivent vivre dans le projet** (le scratchpad ne
   résout pas `node_modules`), et **tout est supprimé après** : fichiers
   temporaires, page de test, comptes de test.
@@ -181,6 +190,33 @@ Aucun harnais de test n'est installé (proposé, non retenu). Procédé employé
 - **Corriger l'assertion quand elle mesure la mauvaise chose ; corriger le CODE
   quand elle mesure la bonne** (découverte nº 44). Ne jamais assouplir une règle
   pour excuser ce qu'on vient d'écrire.
+- **Le contenu d'un accordéon Radix FERMÉ n'est pas dans le HTML servi**
+  (découverte nº 45) : jumeau de la découverte nº 32 pour le `<DataTable>`. Une
+  assertion sur le texte d'une réponse appartient à la suite navigateur, après
+  ouverture du panneau.
+- **Envelopper les sondes CDP dans une IIFE `async`** (découverte nº 46), sans
+  quoi toute sonde qui `await` lève une erreur de syntaxe.
+- **Attendre la MUTATION, pas la capture** (découverte nº 47) : un patch de
+  `window.fetch` rend la main quand la requête PART. Enchaîner tout de suite
+  court contre la mutation en cours.
+- **Purger le journal d'audit en fin de recette**, par `actor_id` : les Lots 8F
+  et 8G l'ont fait et `audit_logs` n'a pas bougé d'une ligne.
+- **REBÂTIR ET REDÉMARRER `next start` avant toute suite navigateur**
+  (découverte nº 48) : un serveur périmé sert des chunks JS désaccordés du HTML,
+  React abandonne l'hydratation EN SILENCE, et tout clic devient sans effet.
+  Tuer le processus **par son port** (`Get-NetTCPConnection -LocalPort 3210 |
+  Stop-Process`) — un `taskkill` sur `node.exe` ne l'attrape pas et laisse
+  l'ancien serveur en place, ce qui produit exactement cette panne.
+- **Une cible tactile ne se mesure pas avec `getBoundingClientRect()`**
+  (découverte nº 49) : pseudo-élément `::after` de `CIBLE_44`, `<input>`
+  `sr-only` délégant à son `<label>`, champs fantômes de Radix. Trois pièges,
+  26 fausses fautes par écran si la sonde est naïve.
+- **La règle des 16 px ne vaut que SOUS `md:`** (découverte nº 50), et
+  seulement sur les champs de SAISIE. Une sonde qui l'applique partout invente
+  une règle et condamne tous les écrans déjà recettés.
+- **Une sonde CDP ne doit contenir aucun accent grave** : elle vit dans un
+  littéral gabarit TypeScript, qu'un accent grave referme. Deux compilations
+  ont été perdues sur des commentaires qui citaient du code.
 
 ---
 
@@ -347,6 +383,21 @@ Chacun est documenté dans le code concerné.
 | 121 | **Changer le SUJET déplace la question d'une page à l'autre, et c'est AUTORISÉ** | C'est le seul champ de cette collection dont la modification a un effet que l'éditeur ne voit pas sur l'écran où il travaille. La tentation était d'en faire une garde, sur le modèle des Lots 8C et 8D ; elle a été écartée parce que **aucun état n'est faux ici** — une question de bénévolat rangée dans « Dons » est une erreur de classement, qui se corrige précisément par cette modification. Refuser reviendrait à empêcher la correction. À la place, `<ConsequenceDuSujet>` ÉCRIT la conséquence sous le champ et, sur une question existante, **nomme le déplacement** : « elle quittera la page X ». Mesuré des deux côtés (suite 4, F01–F04). |
 | 122 | **Deux liens en ligne corrigés DANS le périmètre du lot** | Trouvés par la sonde de cibles bornée à la section `#faq` : « Écrivez-nous » (accueil) à **89 × 17 px** et « Devenez bénévole » (`/don`) à **123 × 17 px**. Ils sont dans la section que ce lot livre, et l'écart nº 112 s'applique mot pour mot : la règle 4 du §12 ne connaît pas d'exception pour un lien « au sein d'une phrase ». Ils portent désormais `inline-flex min-h-11`. Le relevé hors périmètre est passé de 13 à 12 cibles sur l'accueil et de 6 à 5 sur `/don` — les deux corrigées, et rien d'autre touché. |
 | 123 | **Trois ancres `id="faq"` ajoutées, et trois sections rendues conditionnelles** | Les ancres sont exigées par les liens « Voir sur le site » de la fiche (sans elles, le lien mène en haut de page). La condition suit la règle établie depuis le Lot 8B : une section vide disparaît plutôt que d'annoncer un contenu absent. **Elle compte doublement ici** — sans elle, la page émettrait un `FAQPage` **VIDE**, c'est-à-dire une déclaration fausse envoyée aux moteurs. C'est la raison pour laquelle le bloc JSON-LD lui-même est conditionnel, et pas seulement l'accordéon (suite 3, H03). |
+
+### Écarts du Lot 8G
+
+| # | Écart | Raison |
+|---|---|---|
+| 124 | **`stats.key` est DÉRIVÉ du libellé, IMMUABLE, et jamais saisi** | La colonne est `not null unique` et il fallait bien la remplir. Trois voies étaient ouvertes : un champ de formulaire (rejeté — un slug est une ADRESSE que quelqu'un a de bonnes raisons de choisir, une clé de chiffre n'apparaît NULLE PART, ni sur le site ni dans une URL : demander de la saisir, c'est demander de décider d'une chose invisible) ; un identifiant opaque (rejeté — `id` fait déjà ce travail) ; **dérivée du libellé par `slugify`**, ce qui est fait. `updateStat` la neutralise comme il neutralise `isVisible` : une clé qui suivrait les reformulations du libellé ne serait pas un identifiant stable. **Le typage l'impose plutôt que le commentaire** : `CreateStat` (sans `key`) est le contrat de l'appelant, `CreateStatRow` (avec) celui du dépôt, et `createStat` est le seul pont — une Server Action ne peut pas écrire une clé arbitraire, même par POST direct. La clé est AFFICHÉE en lecture seule sur la fiche : cacher une donnée qui existe est une surprise pour qui ouvre la base un jour, et le Lot 9 en aura besoin pour désigner un chiffre depuis un bloc. |
+| 125 | **`to_confirm` N'A AUCUN EFFET SUR LE SITE PUBLIC** | Le §8G le range parmi les spécificités du lot, et la tentation était d'en faire une mention visible. Trois raisons de ne pas le faire. (a) **Parité** : la recette des lots 8x exige un rendu « identique à l'actuel », et aujourd'hui `projets` et `annees` portent `toConfirm: true` sans que le site n'affiche quoi que ce soit. (b) **Le signal public existe déjà, et c'est la `note`** — « Valeur affichée sur l'ancien site — à revalider » est rendue sous la carte sur `/impact`, page dont le sous-titre promet que « les chiffres en attente de consolidation sont signalés ». (c) **Le destinataire n'est pas le même** : un visiteur ne peut rien faire d'un « à revalider », alors que le dashboard, lui, peut agir — l'écran de liste les compte en tête de page et marque chaque ligne. C'est le raisonnement de l'écart nº 95, transposé. Mesuré des deux côtés (suite 4, C51–C52). |
+| 126 | **⚠️ CORRECTIF DANS `NumberField` (Lot 6) : DÉCOCHER NE REMET PLUS `0`** | Le champ `kind: "number"` et sa case « pas encore disponible » existaient depuis le Lot 6 et **n'avaient jamais eu d'appelant**. L'exercer a révélé un défaut réel : `onCheckedChange={(coche) => field.onChange(coche === true ? null : 0)}`. Décocher écrivait `0` — il suffisait d'enregistrer sans rien taper de plus pour publier un zéro que personne n'avait décidé, **dans le geste même qui annule la case censée l'empêcher**. Décocher laisse désormais le champ VIDE, et le schéma nomme les deux issues honnêtes. ⚠️ **La première version du correctif ne fonctionnait PAS** (`field.onChange(undefined)`, ravalé par react-hook-form — découverte nº 51) : la recette navigateur l'a montrée avant qu'elle n'atteigne quiconque. Corollaire : `inconnu = value === null \|\| value === undefined` laissait la case cochée sur un champ simplement vidé ; le test porte désormais sur `null` SEUL. |
+| 127 | **TROIS états à l'écran là où la donnée n'en a que deux** | Conséquence directe de l'écart nº 126 : le champ porte « vide, pas encore déclaré indisponible », que la base ne connaît pas et que le formulaire refuse à l'enregistrement. L'aperçu le DIT (« Champ vide : saisissez un chiffre, ou cochez… ») plutôt que de montrer une carte que rien ne permet d'obtenir. Le test est `typeof === "number"` et jamais un `??` : **`0` est falsy**, et le confondre avec l'absence est exactement la faute que ce lot existe pour empêcher. |
+| 128 | **La collision refusée est celle de la CLÉ, pas du libellé** | Trouvé par la recette (suite 1, D08), et le message du cas d'usage décrivait une condition qui n'était pas celle testée. **Les quatre clés du seed ne sont PAS dérivées de leurs libellés** — « projets » pour « Projets menés » : elles viennent du tableau TypeScript où elles étaient écrites à la main (mesuré, D60–D63). Deux libellés qui ne diffèrent que par un accent, une majuscule ou une ponctuation produisent la même clé et sont refusés, **avec un message qui NOMME le chiffre occupant la place** — sans quoi on lirait « déjà pris » devant une liste où aucun libellé ne ressemble au sien. Un libellé RÉELLEMENT en double avec une clé différente reste possible : il est **signalé sur les deux lignes** et compté au bandeau, jamais interdit (doctrine de l'écart nº 115 — ni la base ni le métier ne portent d'unicité sur le libellé). |
+| 129 | **`.max(2 147 483 647)` sur `value`, et `.min(0)`** | La colonne est `integer` : sans borne, un chiffre à onze positions traverse toute la chaîne pour échouer sur « value out of range for type integer » — mesuré, **22003** (suite 2, B04). `.min(0)` n'est pas une contrainte inventée : ces cartes comptent des bénéficiaires, des projets et des années, et « −30 » en gros caractères sur l'accueil est une donnée fausse. ⚠️ **La base, elle, accepte `-42` sans broncher** (B05) : le schéma est la SEULE barrière, comme pour `icon` (écart nº 102, revérifié sur cette table en B06). `0` reste accepté — un chiffre réellement nul se dit, et c'est bien pour cela qu'il ne doit pas servir à dire « je ne sais pas ». |
+| 130 | **⚠️ UN ÉDITEUR PEUT RETIRER UN CHIFFRE DE DEUX PAGES PUBLIQUES** | L'écart nº 104 à l'identique, sur la seconde table qui porte `is_visible`. `stat:publish` n'existe pas ; afficher ou masquer relève de `stat:update`. Matrice et RLS (`stats_staff_update`) le disent indépendamment l'une de l'autre, et la recette le MESURE (suite 2, C12–C13 ; suite 4, E10). **Nuance propre à cette collection, et il faut la dire sans en faire un argument d'interdire** : masquer n'est PAS le geste honnête pour un chiffre devenu douteux — celui-là est « cocher pas encore disponible », qui garde la carte avec « — ». Masquer retire la carte et laisse croire que l'association ne suit plus l'indicateur. Les deux gestes existent, ils ne disent pas la même chose, et l'écran l'écrit — aide du champ, confirmation, fiche. |
+| 131 | **`/impact` passe en `force-dynamic` — c'est la première page ENTIÈREMENT statique que le CMS convertit** | Toutes les pages basculées jusqu'ici lisaient déjà la base par ailleurs. `/impact` ne lisait que `src/content/`. Sans la directive, elle serait prérendue au build et corriger le nombre de bénéficiaires laisserait l'ancienne valeur **sur la page qui promet la transparence**, jusqu'au prochain déploiement. L'étiquette `cms:page:impact` est également nouvelle. À retirer au Lot 15 avec les autres. |
+| 132 | **La recherche ne porte PAS sur le chiffre, des DEUX côtés** | `ilike` sur `label` et `note` seulement : chercher « 30 » ne trouve pas le chiffre 30 (mesuré en base, suite 2 D12, et au navigateur, suite 4 A32). `value::text ilike …` était possible et a été écarté — l'index deviendrait inutile, et « 30 » trouverait 130 et 300. **Le dépôt en mémoire porte la MÊME limite volontairement** : un dépôt de test plus généreux que le vrai valide des cas d'usage qui échoueront en production. |
+| 133 | **Le tiret ne voyage jamais seul** | `VALEUR_ABSENTE` et `MENTION_VALEUR_ABSENTE` descendent dans le domaine, et **partout où « — » apparaît, la mention l'accompagne** : `title` sur la carte publique (rendu inchangé), texte en clair dans la colonne du tableau, phrase sur la fiche. Motif : un tiret seul dans une cellule passe pour une colonne vide, un défaut d'affichage ou un chargement en cours — trois lectures qui mènent toutes à « il faut remplir ça », c'est-à-dire à inventer un chiffre. Vérifié jusqu'à 320 px, en cartes comme en tableau (suite 5, B04–B05, D30–D31). |
 
 ---
 
@@ -822,6 +873,72 @@ eu lieu ». Il faut attendre la CONDITION en base — ici, que le statut soit
 réellement retombé à `draft` — avant d'enchaîner. C'est la découverte nº 33
 appliquée à une mutation distante : on attend une condition, et il faut attendre
 la BONNE.
+
+**48. ⚠️ UN `next start` PÉRIMÉ NE PLANTE PAS : IL SERT UNE PAGE MORTE.**
+Découverte du Lot 8G, et la plus coûteuse de la recette. Le serveur tournait
+encore avec le build précédent : les chunks JS ne correspondaient plus au HTML,
+**React a abandonné l'hydratation en silence**, et la page est restée un
+document statique. Aucun clic n'avait d'effet — ni par CDP, ni par un
+`element.click()` natif. Le symptôme est trait pour trait celui d'un composant
+défectueux, et une demi-heure a été passée à chercher un défaut dans une case à
+cocher qui n'en avait aucun.
+
+**Deux règles en découlent, et elles sont dans le module CDP :**
+
+1. **Rebâtir ET REDÉMARRER `next start` avant toute suite navigateur.** Tuer le
+   processus par son port (`Get-NetTCPConnection -LocalPort … | Stop-Process`),
+   pas par un `taskkill` sur `node.exe` — le filtre ne l'attrape pas et laisse
+   l'ancien serveur en place, ce qui produit exactement la panne ci-dessus.
+2. **Attendre l'HYDRATATION, jamais une durée.** Le conseil « ~600 ms après
+   `Page.loadEventFired` » de ce fichier était une pause calibrée, c'est-à-dire
+   ce que la découverte nº 33 interdit. `aller()` attend désormais la MARQUE de
+   React sur le DOM (`Object.keys(el).some(k => k.startsWith('__reactFiber'))`)
+   et **lève une erreur nommée** si elle n'apparaît pas en 15 s. Le message dit
+   « le serveur sert-il un build périmé ? » : le prochain lot n'aura pas à
+   chercher.
+
+**49. ⚠️ `getBoundingClientRect()` N'EST PAS LA ZONE SENSIBLE D'UNE CIBLE.** Une
+sonde de 44 px naïve a rapporté **26 fautes par écran sur des cibles toutes
+conformes**. Trois constructions du design system la mettent en défaut, et
+« corriger » l'une d'elles aurait défait le correctif du Lot 8A :
+
+- **`CIBLE_44` = `after:-inset-3.5`** — la case Radix mesure 16 × 16 px ; ce
+  sont ses 44 px de zone sensible qui vivent dans le **pseudo-élément
+  `::after`**, absent de tout rectangle d'élément. La sonde compose donc le
+  rectangle avec les pseudo-éléments absolus à inset négatif
+  (`getComputedStyle(el, '::after')`).
+- **`PASTILLE_CHOIX`** — le `<input type="radio">` d'une grille d'icônes est en
+  `sr-only`, donc **1 × 1 px** ; la cible réelle est le `<label>` de 44 px qui
+  l'enveloppe. Un champ visuellement masqué délègue sa mesure à son `<label>`.
+- **Les champs FANTÔMES de Radix** — chaque `Checkbox` rend derrière son bouton
+  un `<input type="checkbox">` de 16 px pour la soumission native :
+  `aria-hidden`, `opacity: 0`, `pointer-events: none`. Deux fausses fautes par
+  formulaire. Le critère d'exclusion est fonctionnel, pas nominatif : est écarté
+  ce qui est hors du champ tactile **et** hors de l'arbre d'accessibilité.
+
+Le même trio fausse la sonde de NOMS accessibles : `el.labels` ne rend que les
+`<label for=…>`, jamais ceux par enveloppement. `el.closest('label')` couvre les
+deux formes.
+
+**50. La règle des 16 px est bornée SOUS `md:` — et c'est écrit dans le code.**
+`field-styles.ts` pose `text-base md:text-sm`, avec son motif : « iOS Safari
+zoome à la mise au point ». Une sonde qui exige 16 px à 1440 px ne mesure pas une
+règle du projet, **elle en invente une** — et signalerait tous les écrans
+recettés des Lots 6 à 8F. Elle ne concerne d'ailleurs que les champs de SAISIE :
+la taille de police d'une case à cocher ne fait rien zoomer. Une vérification
+non applicable doit le DIRE (« règle non applicable au-delà de 768 px ») plutôt
+que de passer en silence.
+
+**51. ⚠️ `undefined` N'EST PAS REPRÉSENTABLE DANS REACT-HOOK-FORM.**
+`useController` résout sa valeur par `get(valeurs, nom, défaut)`, et `get`
+substitue le DÉFAUT dès que la valeur lue est `undefined`. Écrire `undefined`
+dans un champ est donc indiscernable de « ce champ n'a jamais été touché » : la
+bibliothèque relit aussitôt la valeur par défaut. C'est ce qui a fait échouer la
+première version du correctif de l'écart nº 126 — la case refusait purement et
+simplement de se décocher, sans la moindre erreur. **La seule valeur « vide »
+que RHF sait porter est `""`**, et c'est celle qu'il faut utiliser ; le message
+de TYPE du schéma (`z.number("…")`, acquis de l'écart nº 90) est alors ce qui
+rend l'état lisible pour l'utilisateur.
 
 **COMPLÉMENT DU LOT 8E à la découverte nº 35 (disque).** Le disque est retombé à
 **30 Mo** avant la recette. Cette fois `.next/dev` n'existait pas (aucun
@@ -1320,37 +1437,243 @@ d'origine, toutes visibles, positions 1-4, 1 seul profil).
 
 ---
 
-## Prochaine étape : Lot 8F — questions fréquentes
+## Ce qu'a livré le Lot 8F (détail)
+
+### Fichiers
+
+| Fichier | Rôle |
+|---|---|
+| `src/core/cms/entities/faq-item.ts` | `FaqItem`, `FAQ_TOPICS`, `FAQ_TOPIC_LABELS`, `FAQ_TOPIC_DESTINATIONS`, **`texteReponse()`** (écart nº 113) et **`selectionAccueil()`** (la règle de l'accueil, descendue là où le dashboard peut la DIRE). Aucun import de valeur |
+| `src/core/cms/schemas/faq-item.schema.ts` | 7 schémas. `z.enum(FAQ_TOPICS)`, `pucesSchema` **facultatif** (écart nº 119), messages français aux trois niveaux d'emblée |
+| `src/core/cms/ports/faq-item.port.ts` | `findPublished({ topic, limit })` — **première lecture publique du Lot 8 à prendre un paramètre de sélection** : le sujet décide de la page |
+| `src/core/use-cases/faq-items/*.ts` | `create`, `update`, `delete`, `reorder`, `setStatus`, `get`, et `list` (+ `listPublished`, `listFaqAccueil`) |
+| `src/core/testing/in-memory-faq-item.repository.ts` | Dépôt en mémoire — copies défensives des tableaux, et **même limite de recherche que le vrai** (pas de `ilike` sur les puces) |
+| `src/infrastructure/supabase/mappers/faq-item.mapper.ts` | Repli de sujet **inatteignable** (écart nº 116) et normalisation `bullets` → `[]` |
+| `src/infrastructure/supabase/repositories/faq-item.repository.ts` | Liste blanche de tri, `findPublished` filtré par sujet, `reorder_rows('faq_items')`, **le point d'interrogation conservé à la recherche** |
+| `src/server/deps/faq-item.deps.ts` | Un seul dépôt : `faq_items` n'a aucune clé étrangère, dans aucun sens |
+| `src/server/actions/faq.actions.ts` | 5 actions. **QUATRE étiquettes**, dont deux nouvelles (écart nº 117) |
+| `src/server/queries/faq.query.ts` | `getFaqParSujet(topic)` et `getFaqAccueil()` — appelées par **trois** pages |
+| `src/components/dashboard/faq/faq-item-form.tsx` | 4 champs dont le **premier `kind: "select"` du Lot 8**. `<ConsequenceDuSujet>` nomme le déplacement ; `<ApercuQuestion>` rend le VRAI `<FAQAccordion>`, déplié |
+| `src/components/dashboard/faq/faq-client.tsx` | Liste : 5 colonnes dont **« Accueil »**, 3 filtres, bandeau qui dit ce que les TROIS pages montrent, signalement des doublons |
+| `src/components/dashboard/faq/faq-item-editeur.tsx` | Fiche : publier / dépublier / supprimer ; lien « Voir sur le site » **dépendant du sujet ET de la position** |
+| `src/app/(dashboard)/dashboard/faq/{,nouveau/,[id]/}page.tsx` | Les trois écrans. L'entrée de navigation existait depuis le Lot 5 et menait à une 404 |
+| `src/components/ui-ext/faq-accordion.tsx` | **MODIFIÉ** : lit l'entité de domaine, clé par identifiant (écart nº 114), `defaultOuvert` pour l'aperçu. Balisage identique |
+| `src/app/(site)/page.tsx` · `don/page.tsx` · `benevolat/page.tsx` | **Bascule** : lecture en base, section conditionnelle, ancre `#faq`, JSON-LD conditionnel et composé (écarts nº 113 et 123), deux liens en ligne corrigés (écart nº 122) |
+| `src/content/faq.ts` | En-tête mis à jour — plus importé, gardé comme référence jusqu'au Lot 16 |
+
+### Recette exécutée — 376 vérifications, 0 échec
+
+| Suite | Vérifs | Portée |
+|---|---|---|
+| 1 · code pur | 118 | entité (29) dont **la contrainte SQL lue dans la migration** et la réponse composée mesurée sur la donnée réelle, **7 schémas × 10 charges hostiles**, 39 vérifications de cas d'usage, mappers, matrice RBAC comparée à celle de `team:*` |
+| 2 · infrastructure (base réelle) | 59 | **les 7 lignes comparées champ par champ à `src/content/faq.ts`**, RLS anonyme (insertion REJETÉE / écriture FILTRÉE), `guard_publish` sur un vrai compte éditeur, **la contrainte `check` sur `topic` mesurée — et `core_values.icon` revérifié comme libre**, `reorder_rows`, limites de recherche |
+| 3 · HTTP (`next start`) | 74 | les 3 pages publiques alimentées par la base, **le JSON-LD `FAQPage` des trois** (nombre, contenu, puces incluses, aucun HTML), gardes anonymes, 3 écrans × 2 rôles, 404, **dépublication → disparition de l'accordéon ET du balisage**, sujet vidé → section et balisage absents, 10 pages publiques intactes |
+| 4 · parcours navigateur (CDP) | 57 | liste + colonne « Accueil » + bandeau, recherche et filtres, **réordonnancement bloqué pendant une recherche**, création avec aperçu vivant, validation en français reliée par `aria-describedby`, publication → accordéon + JSON-LD + **puces réellement affichées**, **changement de sujet mesuré des deux côtés**, « Monter » d'un rang en UN appel, doublon signalé sur les deux lignes, éditeur bridé + **rejeu direct → FORBIDDEN**, suppression, audit |
+| 5 · responsive / a11y | 68 | 3 écrans × 5 largeurs (débordement, 44 px, 16 px, noms), contraste AA **clair et sombre** (236 textes), bascule 767/768 px, zoom 200 %, **3 sections FAQ publiques × 5 largeurs bornées à `#faq`**, réponse dépliée à 320 px |
+
+Les cinq suites ont été rejouées d'affilée sur l'arbre final. Banc entièrement
+retiré ensuite ; base vérifiée identique à son état de départ (7 questions
+publiées, positions 1-7, sujets d'origine, 1 seul profil) — et **`audit_logs`
+inchangé à 117 entrées, 0 de type `faq_item.*`**.
+
+### Trois points retenus
+
+1. **Une bascule en base ne casse pas les données : elle rend atteignables des
+   états que le fichier TypeScript rendait impossibles.** Deux questions
+   identiques n'existaient pas tant que la liste était relue à chaque commit —
+   d'où une clé React dupliquée qui dormait depuis toujours (écart nº 114), et
+   un JSON-LD qui déclarerait deux fois la même entrée (écart nº 115). Le CMS
+   ne déplace pas seulement le contenu, il élargit l'ensemble des états
+   possibles. **Chaque lot devrait se demander lesquels.**
+2. **Un balisage n'est pas un doublon du contenu visible : il peut en être le
+   seul véhicule.** Le texte des réponses n'est pas dans le HTML servi — Radix
+   ne monte un accordéon qu'à l'ouverture (découverte nº 45). Ce qui rendait
+   l'écart nº 113 anodin en apparence — « ce ne sont que des puces » — le rend
+   au contraire structurant : c'est la seule chose qu'un moteur lit.
+3. **L'absence de garde propre à un lot se CONSTATE, elle ne se comble pas.**
+   Les Lots 8C et 8D en portaient une parce qu'un état faux était atteignable.
+   Ici, aucun. Chercher une règle à tout prix aurait produit une contrainte que
+   ni la base ni le métier ne portent — la faute que le Lot 8D avait déjà
+   nommée.
+
+### Points de vigilance légués
+
+- **⚠️ Un ÉDITEUR peut retirer une question de l'ACCUEIL par un simple
+  réordonnancement** (écart nº 120), sans avoir `faq:publish`. Mesuré, conforme
+  à la matrice et à la RLS. Moins grave que l'écart nº 104 — la question reste
+  en ligne sur la page de son sujet — **sauf pour un sujet `general`, qui n'a
+  pas de page à lui**. À rediscuter avec l'écart nº 104 : c'est la même famille
+  de décision de produit.
+- **Les trous des écarts nº 90, 99 et 102 existent toujours** dans
+  `programme.schema.ts`, `article.schema.ts` et `testimonial.schema.ts`. Le
+  remède est écrit et éprouvé trois fois (8D, 8E, 8F). À appliquer au Lot 16.
+- **`/programmes` annonce « Huit domaines d'intervention » et l'accueil « Voir
+  les 8 programmes »** — écart nº 107, toujours ouvert. `src/lib/nombres.ts` est
+  prêt ; à traiter en rejouant la recette 8A.
+- **Relevé hors périmètre, mesuré et affiché sans être compté** : à 390 px, il
+  reste **12 cibles sous 44 px sur l'accueil, 5 sur `/don`, 7 sur
+  `/benevolat`** — toutes HORS de la section FAQ (en-tête, bouton « Don », liens
+  du pied de page). Les deux qui étaient DANS le périmètre ont été corrigées
+  (écart nº 122). Aucune de ces trois pages ne déborde horizontalement à
+  390 px. À traiter au Lot 12.
+- **Le sitemap ne gagne aucune adresse** : une question n'a pas de page à elle.
+  Vérifié (suite 3, I10).
+
+---
+
+## Ce qu'a livré le Lot 8G (détail)
+
+### Fichiers
+
+| Fichier | Rôle |
+|---|---|
+| `src/core/cms/entities/stat.ts` | `Stat`, `CreateStat`, **`CreateStatRow`** (écart nº 124), `UpdateStat`, `VALEUR_ABSENTE`, `MENTION_VALEUR_ABSENTE`, `VALEUR_MAX`, `chiffreDisponible()`, `libelleValeur()`. Le tiret et sa mention descendent ici : quatre écrans les affichent, quatre recopies auraient fini par diverger |
+| `src/core/cms/schemas/stat.schema.ts` | 7 schémas. `value` **nullable** avec un message de TYPE qui nomme les deux issues, `.min(0)`, `.max(2 147 483 647)` ; `z.enum(ICON_NAMES)` ; `key` absent de tout contrat d'entrée |
+| `src/core/cms/ports/stat.port.ts` | `findVisible` et `setVisibility` (vocabulaire 8E), plus **`findByKey`** — la seule méthode que `CoreValuePort` n'a pas, et elle n'a qu'un appelant : le contrôle d'unicité à la création |
+| `src/core/use-cases/stats/*.ts` | `create` (clé dérivée + unicité), `update` (neutralise `isVisible` **et** `key`), `delete`, `reorder`, `setVisibility`, `get`, `list` (+ `listVisible`) |
+| `src/core/testing/in-memory-stat.repository.ts` | Dépôt en mémoire — **même limite de recherche que le vrai** (pas de `ilike` sur `value`), et `input.value` recopié tel quel |
+| `src/infrastructure/supabase/mappers/stat.mapper.ts` | **Le fichier le plus sensible du lot** : `toStatUpdate` distingue `undefined` (non transmis), `null` (inconnu) et `0` (valeur). Repli d'icône du Lot 8E |
+| `src/infrastructure/supabase/repositories/stat.repository.ts` | Liste blanche de tri (`value`, `to_confirm`, `is_visible` incluses), `findByKey`, `reorder_rows('stats')`, recherche sur `label` et `note` seulement |
+| `src/server/deps/stat.deps.ts` | Un seul dépôt : `stats` n'a aucune clé étrangère, dans aucun sens |
+| `src/server/actions/stats.actions.ts` | 5 actions. **TROIS étiquettes**, dont `cms:page:impact` qui est nouvelle |
+| `src/server/queries/stats.query.ts` | `getChiffresAffiches()` — appelée par **deux** pages, et qui ne filtre PAS les chiffres sans valeur |
+| `src/components/dashboard/stats/stat-form.tsx` | 6 champs dont le **premier appelant de `kind: "number"` depuis le Lot 6**. `<ApercuChiffre>` rend le VRAI `<StatCard>` et **démontre l'invariant nº 1 avant enregistrement** |
+| `src/components/dashboard/stats/stats-client.tsx` | Liste : 6 colonnes dont « Chiffre » et « À revalider », 3 filtres, **deux bandeaux** (ce que le site montre · ce qui reste à consolider), libellés en double signalés |
+| `src/components/dashboard/stats/stat-editeur.tsx` | Fiche : afficher / masquer / supprimer, deux liens « Visible sur », clé technique en lecture seule, et la phrase qui dit ce que le site affiche AUJOURD'HUI |
+| `src/app/(dashboard)/dashboard/chiffres/{,nouveau/,[id]/}page.tsx` | Les trois écrans. L'entrée de navigation existait depuis le Lot 5 et menait à une 404 |
+| `src/components/cards/stat-card.tsx` | **MODIFIÉ** : lit l'entité de domaine, résout l'icône par `<ContentIcon>`, `stat.value === null` jamais `!stat.value`. Balisage identique à l'octet près |
+| `src/components/dashboard/forms/fields/basic-fields.tsx` | **MODIFIÉ** : `NumberField` corrigé (écart nº 126). Décocher la case laisse le champ vide au lieu d'y écrire `0` |
+| `src/app/(site)/page.tsx` · `src/app/(site)/impact/page.tsx` | **Bascule** : lecture en base, section conditionnelle, ancre `#chiffres`, et `force-dynamic` sur `/impact` qui était entièrement statique (écart nº 131) |
+| `src/content/stats.ts` | En-tête mis à jour — plus importé, gardé comme référence jusqu'au Lot 16 |
+
+### Recette exécutée — 740 vérifications, 0 échec
+
+| Suite | Vérifs | Portée |
+|---|---|---|
+| 1 · code pur | 265 | entité et invariant (37) dont **les contraintes lues dans les migrations 0005, 0009 et 0012** et une recherche littérale de `?? 0` dans les six fichiers de la chaîne, **7 schémas × 10 charges hostiles**, `value` sous tous ses angles (null, 0, négatif, décimal, borne int4 exacte, champ vide), 66 vérifications de cas d'usage, mappers (**les trois états du PATCH**), matrice RBAC comparée terme à terme à `value:*` |
+| 2 · infrastructure (base réelle) | 121 | **les 4 lignes comparées champ par champ à `src/content/stats.ts`**, dont les **deux valeurs autrefois calculées** ; ce que la base autorise vraiment (`22003` au dépassement, `-42` accepté, `icon` libre, `23505` sur la clé, `NULL` par défaut) ; RLS anonyme (insertion **rejetée**, écriture **filtrée**), éditeur (**il masque, il ne crée ni ne supprime**), administrateur ; tri, `NULL` en tête ou en queue, recherche, `reorder_rows`, `ADB04` |
+| 3 · HTTP (`next start`) | 113 | les 2 pages publiques alimentées par la base, **la précision sur `/impact` et pas sur l'accueil**, `to_confirm` qui ne fuit pas, 4 200 → « — » → 0 mesurés sur la page servie, **tout masquer fait disparaître titre ET sous-titre**, gardes anonymes, 3 écrans × 2 rôles, 404, 10 pages publiques intactes, sitemap inchangé |
+| 4 · parcours navigateur (CDP) | 107 | liste + colonnes + bandeaux, recherche, **création avec la case cochée → `NULL` relu EN BASE**, écart nº 126 mesuré, message des deux issues relié par `aria-describedby`, **null → 4 200 → null → 0** depuis l'interface, masquer/réafficher, « Monter » dans le menu d'actions, suppression nommée, **rejeu de la requête de l'administrateur depuis la session de l'éditeur → `FORBIDDEN`**, audit produit puis purgé |
+| 5 · responsive / a11y | 134 | 3 écrans × 5 largeurs (débordement, 44 px, 16 px sous `md:`, noms), contraste AA **clair et sombre** (240 textes), bascule 767/768 px, zoom 200 %, **2 sections publiques × 5 largeurs bornées à `#chiffres`**, tiret et mention à 320 px, zone sensible de la case mesurée au point |
+
+Les cinq suites ont été rejouées d'affilée sur l'arbre final. Banc entièrement
+retiré ensuite ; base vérifiée identique à son état de départ (4 chiffres,
+`beneficiaires` à `NULL`, positions 1-4, tous visibles, 1 seul profil) — et
+**`audit_logs` inchangé à 138 entrées, 0 de type `stat.*`**.
+
+### Trois points retenus
+
+1. **Un champ écrit sans appelant est un champ non livré.** `kind: "number"` et
+   sa case « pas encore disponible » dormaient depuis le Lot 6, recettés en
+   apparence. Le premier écran à s'en servir a trouvé, en une manipulation, que
+   **décocher la case écrivait `0`** — le zéro non décidé, dans le geste même
+   qui annule la garde censée l'empêcher. Un composant du design system n'est
+   éprouvé que par un écran réel ; le banc de démonstration ne suffit pas.
+2. **Une correction non mesurée n'est pas une correction.** La première version
+   du remède écrivait `undefined` : elle était juste en intention, et
+   **inopérante** — react-hook-form substitue le défaut à toute valeur
+   `undefined` (découverte nº 51). La case refusait de se décocher, sans la
+   moindre erreur. Ce qui l'a rattrapée n'est pas la relecture, c'est la
+   recette navigateur. **Ce lot a produit deux défauts et les a trouvés
+   lui-même** : c'est le rôle de la recette, pas un accident.
+3. **Une sonde trop stricte est aussi fausse qu'une sonde trop laxiste — et
+   plus dangereuse.** Les mesures d'accessibilité ont rapporté 26 fautes par
+   écran sur des cibles toutes conformes (découverte nº 49) et exigé 16 px là
+   où le design system écrit `md:text-sm` (nº 50). Les « corriger » aurait
+   défait le correctif du Lot 8A et condamné tous les écrans recettés depuis le
+   Lot 6. La découverte nº 44 se lit dans les deux sens : **corriger
+   l'assertion quand elle mesure la mauvaise chose**, et c'était le cas quatre
+   fois dans ce lot.
+
+### Points de vigilance légués
+
+- **⚠️ Un ÉDITEUR peut retirer un chiffre de l'accueil ET de `/impact`**
+  (écart nº 130). L'écart nº 104 sur la seconde table qui porte `is_visible`.
+  Mesuré, conforme à la matrice et à la RLS, **et à rediscuter avec les écarts
+  nº 104 et 120** : c'est la même famille de décision de produit, et elle en est
+  maintenant à sa troisième occurrence.
+- **⚠️ `annees` vaut 6 et ne s'incrémentera plus.** Le seed a figé une valeur qui
+  était calculée (`année courante − 2020`). La recette a mesuré qu'elle coïncide
+  ENCORE avec le calcul en 2026 ; **au 1ᵉʳ janvier 2027 elle sera fausse.** La
+  ligne porte `to_confirm = true` et l'écran de liste la compte, mais rien ne la
+  corrigera tout seul. Même remarque pour `programmes`, figé à 8 : il faudra le
+  mettre à jour le jour où un neuvième programme est publié.
+- **Les trous des écarts nº 90, 99 et 102 existent toujours** dans
+  `programme.schema.ts`, `article.schema.ts` et `testimonial.schema.ts`. Le
+  remède est écrit et éprouvé quatre fois (8D, 8E, 8F, 8G). À appliquer au
+  Lot 16.
+- **`/programmes` annonce « Huit domaines d'intervention » et l'accueil « Voir
+  les 8 programmes »** — écart nº 107, toujours ouvert. `src/lib/nombres.ts` est
+  prêt ; à traiter en rejouant la recette 8A.
+- **La section des chiffres, elle, n'a AUCUN titre qui compte** : ni l'accueil
+  (`<h2 class="sr-only">Nos chiffres clés</h2>`) ni `/impact` (« Nos chiffres »)
+  n'annoncent un nombre. Le défaut de l'écart nº 107 ne se rejoue donc pas ici —
+  vérifié, pas supposé.
+- **Relevé hors périmètre, mesuré et non compté** : les sondes de cibles et de
+  contraste ont été bornées à `#chiffres` sur les deux pages publiques, et
+  **rien n'y dépasse**. Le relevé hors périmètre du Lot 8F (12 cibles sous 44 px
+  sur l'accueil, 5 sur `/don`, 7 sur `/benevolat`) est inchangé — ce lot n'y a
+  ni ajouté ni retranché. À traiter au Lot 12.
+- **Le sitemap ne gagne aucune adresse** : un chiffre n'a pas de page à lui.
+  Vérifié (suite 3, D21).
+- **`rate_limits` et `media_assets` intacts** : 4 lignes et 1 média, comme au
+  Lot 8F. Aucune recette de ce lot n'a touché à la limitation de débit.
+
+---
+
+## Prochaine étape : Lot 8H — galerie
 
 Voir la table des lots 8B → 8I du Rapport 2. Spécificités annoncées :
-`topic` (don / bénévolat / général), `bullets[]`, et **la génération du JSON-LD
-`FAQPage`** — ce qui en fait le premier lot dont la bascule touche des données
-structurées et non seulement du rendu. `faq_items` porte un `status` : le
-gabarit à quatre états des Lots 8A–8D redevient la référence, pas celui-ci.
+**assemblage médiathèque + catégorie**, et le remplacement de la lecture disque
+de `src/content/galerie.ts`.
 
-Ce que le Lot 8E lègue de réutilisable :
+⚠️  **C'est le premier lot du Lot 8 dont la source de vérité est un FICHIER, pas
+un tableau TypeScript.** Le §8H l'écrit : « la convention de nommage
+`categorie-NN.jpg` disparaît : la catégorie devient une colonne. Le fichier
+`legendes.json` est migré vers `media_assets.alt_text`. » Les écarts nº 85 et 97
+sont donc à relire avant d'écrire une ligne : **deux fois déjà, un pont vers
+`/public` a été refusé** parce que la convention de nommage était indexée sur un
+identifiant qui n'existe plus en base. Ici, la question se pose différemment —
+les fichiers de la galerie existent vraiment et sont nombreux — et elle mérite
+d'être tranchée explicitement plutôt que par réflexe.
 
-- **le gabarit est stable sur cinq collections**, et il en existe désormais
-  **deux variantes** : à cycle éditorial (8A–8D, à reprendre pour 8F) et à
-  visibilité binaire (8E, à reprendre pour **8G**, qui partage la colonne
-  `is_visible` et l'absence de `stat:publish`). `visibility.ts` est déjà écrit
-  pour lui ;
-- **`icon-name.ts` est le modèle à suivre** dès qu'une liste de référence doit
-  être validée par un schéma : la liste descend dans `core/`, la présentation la
-  ré-exporte, et un `Record<Clé, Composant>` interdit la divergence à la
-  compilation ;
-- **`src/lib/nombres.ts` existe** : tout titre de section qui compte doit dériver
-  son nombre, jamais l'écrire ;
+`gallery_items` porte un `status` (migration 0005) : c'est le gabarit des Lots
+8A–8D et 8F qu'il faut reprendre, **et non celui du Lot 8E/8G**. Vérifier dans
+la migration, pas de mémoire.
+
+Ce que le Lot 8G lègue de réutilisable :
+
+- **le gabarit est stable sur sept collections**, en deux variantes : à cycle
+  éditorial (8A–8D, 8F) et à visibilité binaire (8E, 8G — la série est close,
+  `stats` et `core_values` sont les deux seules tables sans `status`) ;
+- **`<MediaPicker>` et `<CmsImage>` (Lot 7) n'ont encore qu'un appelant** : la
+  médiathèque elle-même, et le champ `media` de trois formulaires. Le Lot 8H en
+  fera le cœur de son écran — même situation que `kind: "number"` pour ce
+  lot-ci, avec la leçon qui va avec : **un composant sans appelant réel n'est
+  pas éprouvé** (point retenu nº 1) ;
 - **le module CDP est à réécrire à chaque lot**, mais ses parades sont acquises :
   dimensionnement de la cible (nº 31), `pointerdown` pour Radix (nº 30), attente
   de condition (nº 33), saisie relue (nº 37), contexte isolé par rôle (nº 36),
-  casse des en-têtes (nº 39), purge à l'entrée (nº 40), **dimensionner avant de
-  chercher un `tbody` (nº 41)**, **borner présence et ordre à la section
-  (nº 42–43)** ;
-- **vérifier le disque AVANT de commencer** (nº 35 et ses deux compléments) :
-  regarder `npm-cache` en premier, puis `.next/dev`, puis `.next/cache`.
+  casse des en-têtes (nº 39), purge à l'entrée (nº 40), dimensionner avant de
+  chercher un `tbody` (nº 41), borner présence et ordre à la section (nº 42–43),
+  IIFE async dans `Runtime.evaluate` (nº 46), attendre la mutation, pas la
+  capture (nº 47), **attendre l'HYDRATATION et redémarrer le serveur (nº 48)**,
+  **composer la zone sensible réelle d'une cible (nº 49)**, **borner la règle des
+  16 px sous `md:` (nº 50)** ;
+- **le rejeu d'une Server Action capturée** : patcher `window.fetch` dans la
+  session de l'administrateur, attendre la MUTATION (nº 47), relire la capture,
+  puis la rejouer depuis la session de l'éditeur. C'est le seul moyen d'exercer
+  `createAction` elle-même — une garde d'écran ne prouve rien sur une frontière
+  joignable sans passer par l'écran. Le Lot 8G a mesuré un vrai `FORBIDDEN` par
+  ce chemin ;
+- **purger le journal d'audit en fin de recette** : deux lots de suite l'ont
+  fait, `audit_logs` n'a pas bougé ;
+- **vérifier le disque AVANT de commencer** (nº 35) : `npm-cache` d'abord, puis
+  `.next/dev`, puis `.next/cache`. Il restait 7,4 Go au démarrage de ce lot, ce
+  qui a suffi sans purge.
 
 ---
+
 
 ## Ce qu'a livré le Lot 6 (détail)
 

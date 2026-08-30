@@ -11,9 +11,26 @@ import { CTABanner } from "@/components/ui-ext/cta-banner";
 import { Reveal } from "@/components/ui-ext/reveal";
 import { SectionHeading } from "@/components/ui-ext/section-heading";
 import { rapports } from "@/content/equipe";
-import { stats } from "@/content/stats";
 import { resolveMedia } from "@/lib/media";
 import { contact } from "@/lib/site-config";
+import { getChiffresAffiches } from "@/server/queries/stats.query";
+
+/**
+ * ⚠️  `force-dynamic` — TRANSITOIRE, À RETIRER AU LOT 15.
+ *
+ * Cette page était entièrement STATIQUE avant le Lot 8G : tout son contenu
+ * venait de `src/content/`. La section « Nos chiffres » lit désormais la base.
+ *
+ * Sans cette directive, `/impact` serait prérendue au build : corriger le
+ * nombre de bénéficiaires depuis le dashboard laisserait l'ancienne valeur sur
+ * la page qui promet la transparence, jusqu'au prochain déploiement — et
+ * l'étiquette `cms:page:impact` que `stats.actions.ts` invalide ne servirait à
+ * rien.
+ *
+ * Le raisonnement complet, et la marche à suivre au Lot 15, sont dans l'en-tête
+ * de `src/server/queries/stats.query.ts`.
+ */
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Impact & transparence",
@@ -50,7 +67,7 @@ const engagements = [
   },
 ];
 
-export default function ImpactPage() {
+export default async function ImpactPage() {
   /**
    * Un rapport n'est proposé au téléchargement que si le PDF a réellement été
    * déposé dans /public/documents/ : jamais de lien de téléchargement mort.
@@ -59,6 +76,21 @@ export default function ImpactPage() {
     ...rapport,
     available: resolveMedia(rapport.file).available,
   }));
+
+  /*
+    Les chiffres clés viennent de la base au Lot 8G.
+
+    C'est la même lecture que celle de l'accueil — même fonction, même ordre,
+    mêmes cartes. La seule différence est ici : chaque carte est SUIVIE DE SA
+    PRÉCISION (`note`), ce que l'accueil n'affiche pas.
+
+    ⚠️  LES CHIFFRES NON FOURNIS SONT DANS CETTE LISTE. C'est encore plus vrai
+    ici qu'à l'accueil : le sous-titre de la section promet que « les chiffres
+    en attente de consolidation sont signalés plutôt qu'arrondis au hasard ».
+    Une carte à « — » suivie de sa note est exactement ce que cette phrase
+    annonce ; la masquer la rendrait fausse.
+  */
+  const chiffres = await getChiffresAffiches();
 
   return (
     <>
@@ -79,31 +111,44 @@ export default function ImpactPage() {
       />
 
       {/* --- Chiffres --- */}
-      <section className="py-14 lg:py-20">
-        <Container size="wide">
-          <Reveal>
-            <SectionHeading
-              title="Nos chiffres"
-              subtitle="Chaque valeur est accompagnée de sa source. Les chiffres en attente de consolidation sont signalés plutôt qu'arrondis au hasard."
-            />
-          </Reveal>
+      {/*
+        ⚠️  SECTION CONDITIONNELLE depuis le Lot 8G, et l'ancre `#chiffres` est
+        nouvelle (destination des liens « Voir sur le site » de
+        `/dashboard/chiffres/[id]`).
 
-          <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {stats.map((stat, index) => (
-              <Reveal as="li" key={stat.key} delay={index * 0.06}>
-                <div className="flex h-full flex-col">
-                  <StatCard stat={stat} />
-                  {stat.note ? (
-                    <p className="mt-2 px-1 text-xs leading-relaxed text-muted-foreground">
-                      {stat.note}
-                    </p>
-                  ) : null}
-                </div>
-              </Reveal>
-            ))}
-          </ul>
-        </Container>
-      </section>
+        La condition suit la règle établie depuis le Lot 8B. Elle compte
+        particulièrement ici : le titre « Nos chiffres » suivi d'une grille vide
+        annoncerait un contenu absent sur la page qui promet la transparence.
+
+        La clé de liste est l'IDENTIFIANT, pas la clé technique (écart nº 114).
+      */}
+      {chiffres.length > 0 ? (
+        <section id="chiffres" className="py-14 lg:py-20">
+          <Container size="wide">
+            <Reveal>
+              <SectionHeading
+                title="Nos chiffres"
+                subtitle="Chaque valeur est accompagnée de sa source. Les chiffres en attente de consolidation sont signalés plutôt qu'arrondis au hasard."
+              />
+            </Reveal>
+
+            <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {chiffres.map((stat, index) => (
+                <Reveal as="li" key={stat.id} delay={index * 0.06}>
+                  <div className="flex h-full flex-col">
+                    <StatCard stat={stat} />
+                    {stat.note ? (
+                      <p className="mt-2 px-1 text-xs leading-relaxed text-muted-foreground">
+                        {stat.note}
+                      </p>
+                    ) : null}
+                  </div>
+                </Reveal>
+              ))}
+            </ul>
+          </Container>
+        </section>
+      ) : null}
 
       {/* --- Engagements --- */}
       <section className="bg-card py-14 lg:py-20">

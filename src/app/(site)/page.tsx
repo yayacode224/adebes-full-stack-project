@@ -21,7 +21,6 @@ import { FAQAccordion } from "@/components/ui-ext/faq-accordion";
 import { Reveal } from "@/components/ui-ext/reveal";
 import { SectionHeading } from "@/components/ui-ext/section-heading";
 import { texteReponse } from "@/core/cms/entities/faq-item";
-import { homeStats } from "@/content/stats";
 import {
   getArticlesPublies,
   getCategoriesParId,
@@ -29,6 +28,7 @@ import {
 import { getFaqAccueil } from "@/server/queries/faq.query";
 import { resoudreMedias } from "@/server/queries/media.query";
 import { getProgrammesPublies } from "@/server/queries/programmes.query";
+import { getChiffresAffiches } from "@/server/queries/stats.query";
 import { getTemoignagesPublies } from "@/server/queries/testimonials.query";
 import { getValeursAffichees } from "@/server/queries/values.query";
 
@@ -101,6 +101,26 @@ export default async function HomePage() {
   const faqAccueil = await getFaqAccueil();
 
   /*
+    Les chiffres clés viennent de la base au Lot 8G.
+
+    Aucune coupe ici, comme pour les valeurs : `getChiffresAffiches()` rend les
+    chiffres marqués comme visibles, dans l'ordre choisi au dashboard, et la
+    grille `lg:grid-cols-4` en absorbe un nombre quelconque.
+
+    ⚠️  LES CHIFFRES NON FOURNIS SONT DANS CETTE LISTE, et ils doivent y rester.
+    `beneficiaires` porte `value = null` : la carte affiche « — » et sa mention,
+    exactement comme avant ce lot. Filtrer sur « chiffre renseigné » aurait été
+    plus joli et malhonnête — la carte disparue, plus rien ne dirait que
+    l'association suit cet indicateur sans pouvoir encore le chiffrer. C'est
+    l'invariant nº 1 du projet.
+
+    ⚠️  C'est la seconde lecture de cette page partagée avec une autre :
+    `/impact` appelle exactement la même fonction et rend les mêmes cartes — en
+    y ajoutant la précision de chacune, que l'accueil n'affiche pas.
+  */
+  const chiffres = await getChiffresAffiches();
+
+  /*
     Une seule résolution de médias pour les trois sections : `resoudreMedias`
     dédoublonne et mémoïse sur la clé, mais trois appels distincts feraient
     trois requêtes. Les couvertures des programmes, celles des articles et les
@@ -142,18 +162,38 @@ export default async function HomePage() {
       <HomeHero />
 
       {/* --- Chiffres clés — présents une seule fois sur la page --- */}
-      <section className="border-b border-border bg-card py-12 lg:py-16">
-        <Container size="wide">
-          <h2 className="sr-only">Nos chiffres clés</h2>
-          <ul className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            {homeStats.map((stat, index) => (
-              <Reveal as="li" key={stat.key} delay={index * 0.06}>
-                <StatCard stat={stat} className="h-full" />
-              </Reveal>
-            ))}
-          </ul>
-        </Container>
-      </section>
+      {/*
+        ⚠️  SECTION CONDITIONNELLE depuis le Lot 8G, et l'ancre `#chiffres` est
+        nouvelle (elle est la destination des liens « Voir sur le site » de
+        `/dashboard/chiffres/[id]` ; sans elle, le lien mène en haut de page).
+
+        La condition suit la règle établie depuis le Lot 8B : une section vide
+        disparaît plutôt que d'annoncer un contenu absent. Elle ne se déclenche
+        que si TOUS les chiffres sont masqués — un chiffre sans valeur, lui,
+        reste affiché avec « — ».
+
+        La clé de liste est l'IDENTIFIANT, pas la clé technique : c'est la leçon
+        de l'écart nº 114. `key` est unique en base, donc correct aujourd'hui,
+        mais `id` l'est par construction et ne dépend d'aucune contrainte qu'une
+        migration pourrait relâcher.
+      */}
+      {chiffres.length > 0 ? (
+        <section
+          id="chiffres"
+          className="border-b border-border bg-card py-12 lg:py-16"
+        >
+          <Container size="wide">
+            <h2 className="sr-only">Nos chiffres clés</h2>
+            <ul className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+              {chiffres.map((stat, index) => (
+                <Reveal as="li" key={stat.id} delay={index * 0.06}>
+                  <StatCard stat={stat} className="h-full" />
+                </Reveal>
+              ))}
+            </ul>
+          </Container>
+        </section>
+      ) : null}
 
       {/* --- Qui sommes-nous --- */}
       <section className="py-16 lg:py-24">

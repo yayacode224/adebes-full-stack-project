@@ -228,6 +228,54 @@ function decouperEnParagraphes(texte: string): string[] {
  *
  * Quand la case est cochée, le champ est désactivé et vidé : on ne peut pas
  * enregistrer « inconnu » et « 4 200 » en même temps.
+ *
+ * ---------------------------------------------------------------------------
+ * ⚠️  CORRECTION DU LOT 8G — DÉCOCHER NE REMET PLUS `0` (écart nº 126)
+ * ---------------------------------------------------------------------------
+ * Ce champ a été écrit au Lot 6 et n'avait **jamais eu d'appelant** avant le
+ * Lot 8G. L'exercer a fait apparaître un défaut réel :
+ *
+ *     onCheckedChange={(coche) => field.onChange(coche === true ? null : 0)}
+ *
+ * Décocher « pas encore disponible » écrivait `0` dans le champ. Enregistrer
+ * sans rien taper de plus publiait donc un zéro que personne n'avait décidé —
+ * exactement ce que la case existe pour empêcher, dans le geste même qui
+ * l'annule.
+ *
+ * Décocher produit maintenant un champ VIDE, et le schéma dit quoi faire :
+ * « Indiquez un chiffre, ou cochez “Ce chiffre n'est pas encore disponible” ».
+ * Deux issues, toutes les deux honnêtes ; aucune valeur par défaut.
+ *
+ * ⚠️  CONSÉQUENCE SUR LE TEST D'ÉTAT, et c'est là que le défaut se cachait :
+ * `null` (« pas disponible ») et « champ vide » (« pas encore saisi ») ne
+ * peuvent plus être confondus. `inconnu = value === null || value === undefined`
+ * laissait la case cochée et le champ désactivé sur un champ simplement vidé —
+ * il n'y avait donc plus aucun moyen d'y taper quoi que ce soit. Le test porte
+ * désormais sur `null` SEUL.
+ *
+ * ---------------------------------------------------------------------------
+ * ⚠️  POURQUOI LE CHAMP VIDE EST `""` ET NON `undefined`
+ * ---------------------------------------------------------------------------
+ * Première version du correctif : `field.onChange(undefined)`. **Elle ne
+ * fonctionnait pas**, et la recette navigateur l'a montrée avant qu'elle
+ * n'atteigne un utilisateur — la case refusait tout simplement de se décocher.
+ *
+ * La cause est dans react-hook-form : `useController` résout sa valeur par
+ * `get(valeurs, nom, défaut)`, et `get` substitue le DÉFAUT dès que la valeur
+ * lue est `undefined`. Écrire `undefined` dans le formulaire est donc
+ * indiscernable de « ce champ n'a jamais été touché » : la bibliothèque
+ * relisait aussitôt `null`, la case se recochait toute seule, et le champ
+ * restait désactivé.
+ *
+ * `""` est la seule valeur « vide » que RHF sait porter — et elle convient
+ * exactement : c'est ce que rend un `<input>` vidé, et `z.number("…")` la
+ * refuse avec le message qui nomme les deux issues. Le message de TYPE du
+ * schéma n'est donc pas un ornement : **c'est lui qui rend ce correctif
+ * possible** (acquis de l'écart nº 90).
+ *
+ * ⚠️  Un champ `number` NON nullable doit donc, lui aussi, porter un
+ * `z.number("…")` avec un message français dans son schéma : sans lui, un champ
+ * vidé produit « Invalid input: expected number, received string ».
  */
 export function NumberField({ name, champ }: Proprietes<"number">) {
   const id = idDeChamp(name);
@@ -236,7 +284,8 @@ export function NumberField({ name, champ }: Proprietes<"number">) {
     defaultValue: champ.nullable ? null : 0,
   });
 
-  const inconnu = field.value === null || field.value === undefined;
+  /** « L'utilisateur a déclaré que ce chiffre n'existe pas encore. » */
+  const indisponible = champ.nullable === true && field.value === null;
   const valeur = typeof field.value === "number" ? String(field.value) : "";
 
   return (
@@ -257,22 +306,22 @@ export function NumberField({ name, champ }: Proprietes<"number">) {
           className={CHAMP}
           {...fieldAria(id, !!fieldState.error, !!champ.hint)}
           {...field}
-          disabled={champ.nullable ? inconnu : false}
-          value={inconnu ? "" : valeur}
+          disabled={indisponible}
+          value={valeur}
           onChange={(evenement) => {
             const brut = evenement.target.value;
             /*
-              Champ vidé : `null` si le champ l'autorise, sinon `undefined`
-              pour que Zod annonce « ce champ est obligatoire » plutôt que de
-              recevoir un `NaN`, dont le message par défaut est
-              incompréhensible pour un éditeur.
+              Champ vidé → `""`, dans TOUS les cas. Voir l'en-tête : ni `null`
+              (qui cocherait la case toute seule en pleine saisie), ni
+              `undefined` (que react-hook-form ravale). C'est Zod qui dit quoi
+              faire, avec le message qui nomme les deux issues.
             */
             if (brut === "") {
-              field.onChange(champ.nullable ? null : undefined);
+              field.onChange("");
               return;
             }
             const nombre = Number(brut);
-            field.onChange(Number.isNaN(nombre) ? undefined : nombre);
+            field.onChange(Number.isNaN(nombre) ? "" : nombre);
           }}
         />
 
@@ -306,14 +355,19 @@ export function NumberField({ name, champ }: Proprietes<"number">) {
           <Checkbox
             id={`${id}-inconnu`}
             className={CIBLE_44}
-            checked={inconnu}
-            onCheckedChange={(coche) => field.onChange(coche === true ? null : 0)}
+            checked={indisponible}
+            /*
+              ⚠️  Champ VIDE en décochant, JAMAIS `0` — écart nº 126. Voir
+              l'en-tête : la version précédente publiait un zéro non décidé dans
+              le geste même qui annule la case censée l'empêcher.
+            */
+            onCheckedChange={(coche) => field.onChange(coche === true ? null : "")}
           />
           Ce chiffre n&apos;est pas encore disponible
         </label>
       ) : null}
 
-      {inconnu && champ.nullable ? (
+      {indisponible ? (
         <p className="text-xs text-muted-foreground">
           Le site affichera «&nbsp;—&nbsp;» à la place de ce chiffre.
         </p>
