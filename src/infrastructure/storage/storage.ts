@@ -143,15 +143,59 @@ export class SupabaseStorage implements MediaStoragePort {
     return buildStoragePath(input);
   }
 
+  /**
+   * ⚠️  CORRECTIF HORS PÉRIMÈTRE — TROUVÉ PAR LA MIGRATION DU LOT 8H
+   * ---------------------------------------------------------------------------
+   * `supabase-js` IGNORE l'option `contentType` quand le corps est un `Blob` :
+   * il construit alors un `FormData` et ajoute le fichier tel quel
+   * (`storage-js/dist/index.cjs`, `uploadOrUpdate`). Le type transmis au bucket
+   * est donc **`blob.type`**, jamais celui qu'on passe ici. L'option n'est lue
+   * que dans la branche « ni Blob ni FormData ».
+   *
+   * Deux conséquences, toutes deux réelles et invisibles jusqu'ici :
+   *
+   *   1. **Un fichier sans type est REFUSÉ.** `File.type` est renseigné par le
+   *      navigateur d'après l'EXTENSION : un JPEG valide nommé « photo », sans
+   *      extension, arrive avec `type: ""`. Il traverse tout `uploadMedia` —
+   *      qui, lui, lit les OCTETS — puis se fait refuser par le bucket
+   *      (« mime type application/octet-stream is not supported »), et
+   *      l'utilisateur lit « Le fichier n'a pas pu être enregistré.
+   *      Réessayez. », c'est-à-dire une invitation à refaire ce qui échouera à
+   *      l'identique.
+   *   2. **Un fichier au type MENTEUR est stocké avec ce mensonge.** Un JPEG
+   *      renommé `.png` s'annonce `image/png` : les deux types étant acceptés
+   *      par le bucket, l'objet est écrit avec `Content-Type: image/png` alors
+   *      que `media_assets.mime_type` — déduit des octets — dit `image/jpeg`.
+   *      Le catalogue et le CDN se contredisent, et c'est le CDN que voit le
+   *      visiteur.
+   *
+   * Le corps est donc RE-ÉTIQUETÉ avec le type réel avant l'envoi.
+   * `Blob.slice(0, size, type)` renvoie une vue portant le nouveau type **sans
+   * recopier les octets** — la mémoire n'est pas doublée sur un fichier de
+   * 8 Mo.
+   *
+   * ⚠️  Ce n'est pas un contournement de la vérification : le type employé ici
+   * est celui que `detectMimeType` a lu dans les octets (`uploadMedia`,
+   * étape 1). On ne fait pas confiance au fichier — on cesse au contraire de
+   * laisser SON étiquette décider à la place de la nôtre.
+   */
   async upload(input: {
     bucket: BucketName;
     path: string;
     file: Blob | ArrayBuffer;
     mimeType: string;
   }): Promise<{ path: string }> {
+    const corps =
+      input.file instanceof Blob
+        ? input.file.slice(0, input.file.size, input.mimeType)
+        : new Blob([input.file], { type: input.mimeType });
+
     const { data, error } = await this.supabase.storage
       .from(input.bucket)
-      .upload(input.path, input.file, {
+      .upload(input.path, corps, {
+        // Conservé bien qu'ignoré pour un `Blob` : la branche `ArrayBuffer` de
+        // `supabase-js`, elle, le lit — et le jour où l'implémentation change,
+        // les deux chemins diront la même chose.
         contentType: input.mimeType,
         // `false` : un chemin est un UUID, il ne peut pas déjà exister. Si
         // c'était le cas, écraser masquerait un bug plutôt que de le révéler.

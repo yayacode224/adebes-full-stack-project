@@ -49,7 +49,7 @@ mémoire sur leur contenu.
 
 ---
 
-## État au terme du Lot 8G
+## État au terme du Lot 8H
 
 ### Lots livrés et recettés
 
@@ -70,6 +70,7 @@ mémoire sur leur contenu.
 | 8E | Valeurs de bout en bout : **première collection sans cycle éditorial** (`is_visible`), **liste des icônes descendue dans le domaine** → `icon` enfin validé par énumération, 5 actions, 3 écrans, bascule de **deux** pages publiques | ✅ 285 tests purs + 75 sur base réelle + 75 HTTP + 95 parcours navigateur + 101 mesures responsive = **631, 0 échec** |
 | 8F | Questions fréquentes de bout en bout : **premier lot dont la bascule touche des données STRUCTURÉES** (JSON-LD `FAQPage`), `topic` qui décide de la page, `bullets[]` facultatives, 5 actions, 3 écrans, bascule de **trois** pages publiques | ✅ 118 tests purs + 59 sur base réelle + 74 HTTP + 57 parcours navigateur + 68 mesures responsive = **376, 0 échec** |
 | 8G | Chiffres clés de bout en bout : **l'invariant nº 1 rendu SAISISSABLE** (`value` nullable, « — » jamais `0`), `key` dérivée et immuable, `to_confirm` interne, 5 actions, 3 écrans, bascule de **deux** pages dont `/impact` qui était **entièrement statique** | ✅ 265 tests purs + 121 sur base réelle + 113 HTTP + 107 parcours navigateur + 134 mesures responsive = **740, 0 échec** |
+| 8H | Galerie de bout en bout : **premier lot dont la source de vérité était un DOSSIER**, migration réelle des 4 photos vers Storage + `media_assets` + `gallery_items`, catégories gérables (teinte comprise), 5 + 4 actions, 3 écrans, bascule de `/galerie` **entièrement statique**, et **3 correctifs hors périmètre dont un défaut réel de téléversement** | ✅ 124 tests purs + 74 sur base réelle + 80 HTTP + 101 parcours navigateur + 110 mesures responsive = **489, 0 échec** |
 
 ### Environnement (déjà configuré, ne pas refaire)
 
@@ -85,20 +86,29 @@ mémoire sur leur contenu.
   comptes de test sont créés puis supprimés à chaque recette.
 - Données : 8 programmes publiés, 3 articles, 5 catégories, 4 valeurs, 7 FAQ,
   4 chiffres (`beneficiaires` à `NULL`), 3 témoignages, 3 fiches d'équipe en
-  brouillon, 12 pages, 30 sections squelettes, 12 entrées de navigation,
-  7 groupes de réglages, 2 rapports annuels en brouillon.
-- **`media_assets` contient 1 média** depuis le Lot 8C : l'utilisateur a
-  téléversé son premier fichier réel depuis `/dashboard/mediatheque`. Les
-  recettes ne le touchent pas et n'en créent aucun. (Avant cela la table était
-  vide, ainsi que les deux buckets.)
-- **`audit_logs` : 138 entrées — inchangé PAR LA RECETTE du Lot 8G.** Mesuré à
-  138 au démarrage de la recette comme à sa fin, et **0 entrée `stat.*`** au
-  contrôle final : la suite 4 en a réellement produit 9 par ses mutations, et
-  les a purgées par `actor_id`. Deuxième lot consécutif à ne rien laisser
-  derrière lui ; c'est la conduite à reprendre.
-  ⚠️  **L'écart avec les 117 du Lot 8F ne vient PAS des recettes** : 21 entrées
-  se sont ajoutées entre les deux lots, produites par l'usage propre de
-  l'utilisateur sur le dashboard. Rien à corriger, mais à savoir avant de
+  brouillon, **4 éléments de galerie publiés et 4 catégories de galerie**,
+  12 pages, 30 sections squelettes, 12 entrées de navigation, 7 groupes de
+  réglages, 2 rapports annuels en brouillon.
+- **`media_assets` contient 5 médias depuis le Lot 8H.** Le premier est celui de
+  l'utilisateur, téléversé au Lot 8C depuis `/dashboard/mediatheque`. Les
+  **quatre autres sont les photographies de la galerie**, migrées par ce lot :
+  `communaute-01.jpeg`, `education-01.jpeg`, `environnement-01.jpeg` et
+  `sante-01.jpeg`, rangées dans le dossier `galerie` du bucket `media`, avec
+  leurs dimensions mesurées et `uploaded_by = null` (personne ne les a
+  téléversées depuis le dashboard). **C'est la première fois qu'une recette
+  ajoute des lignes durables à cette table** — et c'était le travail annoncé
+  par le seed du Lot 1. Les fichiers d'origine restent dans
+  `public/images/galerie/`, mais **plus aucune page ne les lit**.
+- **`audit_logs` : 168 entrées — inchangé PAR LA RECETTE du Lot 8H.** Mesuré à
+  164 au démarrage de la recette comme à sa fin, et **0 entrée `gallery*`** au
+  contrôle final : la suite 4 en a réellement produit 7 par ses mutations, et
+  les a purgées par `actor_id`. Troisième lot consécutif à ne rien laisser
+  derrière lui.
+  ⚠️  **Les écarts de ce compteur ne viennent PAS des recettes.** 138 → 164
+  entre les Lots 8G et 8H, puis 164 → 168 PENDANT la session du Lot 8H : les
+  quatre dernières sont un `auth.login`, un `auth.logout` et deux
+  `programme.reorder` du compte de l'utilisateur, horodatées au milieu de la
+  recette et vérifiées une par une. Rien à corriger, mais à savoir avant de
   s'alarmer d'un compteur qui a bougé.
   Rappel du détail antérieur, à purger au Lot 13 : 16 entrées appartiennent au
   compte de l'utilisateur, 53 sont les `team_member.*` du Lot 8D, 12 les
@@ -217,6 +227,32 @@ Aucun harnais de test n'est installé (proposé, non retenu). Procédé employé
 - **Une sonde CDP ne doit contenir aucun accent grave** : elle vit dans un
   littéral gabarit TypeScript, qu'un accent grave referme. Deux compilations
   ont été perdues sur des commentaires qui citaient du code.
+- **Ce que Radix ne monte pas, le HTML ne le contient pas** (découverte nº 52,
+  après les nº 32 et 45) : les options d'un `<Select>`, les lignes d'un
+  `<DataTable>`, les réponses d'un accordéon fermé. La suite HTTP peut vérifier
+  qu'elles sont SÉRIALISÉES dans la charge utile ; leur affichage appartient à
+  la suite navigateur.
+- **Choisir une capture de Server Action par son CONTENU, pas par son rang**
+  (découverte nº 54) : sur un écran qui LIT par Server Action, la première
+  capture est une lecture, et son rejeu réussit légitimement.
+- **Un thème se règle là où l'application le lit** (découverte nº 55) :
+  `localStorage`, puis rechargement, puis vérification que la classe a TENU
+  pendant la mesure. Une classe posée à la main est reprise par `next-themes`
+  en cours de route et compose un état qui n'existe pas.
+- **Une sonde qui mesure ZÉRO doit échouer** (découverte nº 56). Exiger
+  `mesures > 0`, et vérifier qu'une donnée existe avant d'assertionner dessus :
+  `undefined !== null` vaut `true`.
+- **Borner un clic à son conteneur** (découverte nº 57) : « Ajouter » trouve
+  « Ajouter une photo » ailleurs sur la page. Comparer le texte de façon EXACTE
+  dès qu'un libellé plus long peut contenir le sien.
+- **Le banc de recette est TYPE-CHECKÉ par `next build`** : `tsconfig.json`
+  inclut `**/*.ts`. Un fichier de recette qui ne compile pas fait échouer le
+  build du projet — c'est une contrainte utile (le banc ne peut pas mentir sur
+  ses types), mais elle surprend. Le banc doit être retiré AVANT la
+  vérification finale.
+- **Le banc n'est pas linté** : `npx eslint .` signale ses `require()` tant
+  qu'il est présent. Vérifier `npx eslint src` pendant le lot, et `npx eslint .`
+  une fois le banc supprimé.
 
 ---
 
@@ -398,6 +434,28 @@ Chacun est documenté dans le code concerné.
 | 131 | **`/impact` passe en `force-dynamic` — c'est la première page ENTIÈREMENT statique que le CMS convertit** | Toutes les pages basculées jusqu'ici lisaient déjà la base par ailleurs. `/impact` ne lisait que `src/content/`. Sans la directive, elle serait prérendue au build et corriger le nombre de bénéficiaires laisserait l'ancienne valeur **sur la page qui promet la transparence**, jusqu'au prochain déploiement. L'étiquette `cms:page:impact` est également nouvelle. À retirer au Lot 15 avec les autres. |
 | 132 | **La recherche ne porte PAS sur le chiffre, des DEUX côtés** | `ilike` sur `label` et `note` seulement : chercher « 30 » ne trouve pas le chiffre 30 (mesuré en base, suite 2 D12, et au navigateur, suite 4 A32). `value::text ilike …` était possible et a été écarté — l'index deviendrait inutile, et « 30 » trouverait 130 et 300. **Le dépôt en mémoire porte la MÊME limite volontairement** : un dépôt de test plus généreux que le vrai valide des cas d'usage qui échoueront en production. |
 | 133 | **Le tiret ne voyage jamais seul** | `VALEUR_ABSENTE` et `MENTION_VALEUR_ABSENTE` descendent dans le domaine, et **partout où « — » apparaît, la mention l'accompagne** : `title` sur la carte publique (rendu inchangé), texte en clair dans la colonne du tableau, phrase sur la fiche. Motif : un tiret seul dans une cellule passe pour une colonne vide, un défaut d'affichage ou un chargement en cours — trois lectures qui mènent toutes à « il faut remplir ça », c'est-à-dire à inventer un chiffre. Vérifié jusqu'à 320 px, en cartes comme en tableau (suite 5, B04–B05, D30–D31). |
+
+### Écarts du Lot 8H
+
+| # | Écart | Raison |
+|---|---|---|
+| 134 | **LES QUATRE PHOTOS ONT ÉTÉ MIGRÉES, PAS PONTÉES** | La question « pont vers `/public` ou non » ne se pose ni dans le sens des écarts nº 64 et 75 (on garde le fichier affiché), ni dans celui des nº 85 et 97 (on refuse, la convention de nommage étant indexée sur un identifiant disparu). **`gallery_items.media_id` est `not null`** : aucun élément de galerie ne peut exister sans un média catalogué, donc un pont n'aurait rien à ponter — il n'y aurait AUCUNE ligne à afficher. Les quatre photographies sont donc réellement entrées dans Storage puis dans `media_assets`, et rattachées à leur catégorie par un `gallery_items` publié. Le seed du Lot 1 l'annonçait mot pour mot : « ce qui est le travail du Lot 8H ». Trois choses sont reprises À L'IDENTIQUE pour tenir la parité exigée par le §8x : le texte alternatif que le site GÉNÉRAIT (`legendes.json` n'existe pas), la catégorie déduite du préfixe du fichier — la convention servant une dernière fois, pour se supprimer elle-même — et **l'ORDRE de la grille**, qui était un tri alphabétique du nom sans extension (communaute, education, environnement, sante) et non l'ordre des catégories. |
+| 135 | **UN ÉLÉMENT DE GALERIE NE PORTE AUCUN TEXTE** | `gallery_items` a quatre colonnes : `media_id`, `category_id`, `position`, `status`. Ce qu'on lit à l'écran — la description — appartient au MÉDIA. C'est le sens de la phrase du §8H sur `legendes.json` : la légende suit la photo, pas sa place dans la grille, et une même photo employée deux fois ne peut pas se décrire de deux façons. Trois conséquences qu'aucune collection précédente n'avait : le formulaire n'a **aucun champ de texte** ; le titre de la fiche et le titre d'onglet viennent du média (repli sur le nom de fichier, puis « Photo de la galerie » — aucun de ces replis n'invente de contenu) ; et **la recherche porte sur un texte qui n'est pas dans la table** (voir l'écart nº 141). |
+| 136 | **La garde de publication se réduit à la photo — et c'est un constat** | Les Lots 8C et 8D avaient une garde parce qu'un état FAUX était atteignable (citation sans accord, marqueur affiché comme un nom). Ici, le seul état invalide est « publié sans photo », que la base interdit déjà (`not null`) mais qu'un import atteindrait avec un message SQL. La tentation était d'exiger une CATÉGORIE avant publication : écartée pour trois raisons, dans l'ordre — l'état n'est pas faux mais **incomplet** ; ce serait inventer une contrainte que ni la base (`category_id` nullable) ni le §8H ne portent, faute que le Lot 8E a refusé de commettre (écart nº 106) ; et le geste est trivialement réversible. Ce qui est fait à la place : l'écran le DIT, à quatre endroits. |
+| 137 | **Une photo sans catégorie reste VISIBLE, dans « Tous » seulement** | Le point « à trancher au début du lot ». Les deux autres voies ont été écartées : un bouton « Sans catégorie » sur la page publique **exposerait au visiteur une lacune de classement interne**, qui ne le regarde pas ; rendre la catégorie obligatoire au formulaire interdirait d'enregistrer un brouillon avant d'avoir décidé du classement. Doctrine des Lots 8E et 8F : **informer plutôt qu'interdire**. La colonne « Catégorie » écrit « Sans catégorie » suivi de « n'apparaît que dans « Tous » », le bandeau les compte, la fiche le redit, et l'aperçu du formulaire le MONTRE en faisant disparaître le bouton de filtre. Mesuré des deux côtés (suite 4, D05–D07). |
+| 138 | **Les boutons de filtre ne montrent que les catégories EMPLOYÉES** | `gallery_categories_public_read` est `using (true)` : les quatre lignes sont lisibles même si aucune photo ne les emploie. Rendre un bouton par ligne donnerait un filtre menant à une grille VIDE — un cul-de-sac que le visiteur prend pour une panne, et le jumeau exact de la section vide que les Lots 8B à 8G font disparaître. La sélection vit dans le domaine (`categoriesAffichees`), pas dans la page : l'écran du dashboard doit pouvoir appliquer la même règle pour l'expliquer. ⚠️ **La parité est conservée et vérifiée, pas supposée** : les quatre catégories portent chacune une photo migrée, donc les quatre boutons sont rendus, comme aujourd'hui (suite 3, A07–A10 ; suite 4, E09–E10). |
+| 139 | **Les catégories sont gérées dans une MODALE — écart nº 69 qui se rejoue** | Mêmes trois raisons qu'au Lot 8B : la navigation du §5.2 ne prévoit pas d'entrée « Catégories » et lui en ajouter une livrerait un écran inatteignable ; une catégorie porte trois informations (libellé, teinte, rang), sur lesquelles l'écran de liste du Lot 6 n'aurait rien à afficher ; on gère ses catégories EN CLASSANT une photo. **Différence avec le Lot 8B : la TEINTE se choisit ici**, `gallery_categories` portant une colonne que `article_categories` n'a pas — et c'est la couleur du bloc affiché à la place d'une photo qui ne charge pas. Le sélecteur est un `<select>` NATIF : la modale rend déjà une liste ordonnable dans un conteneur défilant, et y superposer le menu flottant de Radix empilerait trois portails pour cinq options figées. |
+| 140 | **La création d'une catégorie exige `gallery:publish` — écart nº 70 qui se rejoue** | La RLS ouvre le renommage et le réordonnancement au personnel mais réserve l'ajout et la suppression à `app_can_publish()` (migration 0009), alors que la matrice du §9 ouvre `gallery:create` à l'éditeur. Les deux seules permissions dont les titulaires coïncident avec `app_can_publish()` sont `gallery:publish` et `gallery:delete` ; la seconde couvre la suppression, il ne reste que la première pour l'ajout. Le choix est **contraint**, exactement comme au Lot 8B, et l'alternative — inventer une ressource `gallery_category` — aurait ajouté six permissions au document d'audit qu'est le §9 pour une liste de quatre libellés. **Ce qui est recetté : l'interface n'affiche jamais un bouton que la base refusera** (suite 2, E13–E16 ; suite 4, E11–E14). |
+| 141 | **La recherche porte sur un texte qui n'est PAS dans la table** | `gallery_items` n'a aucune colonne de texte : le dépôt IGNORE donc `filter.search`, et le dépôt en mémoire l'ignore aussi — il doit ressembler au vrai jusque dans ce qu'il ne fait pas (écarts nº 109 et 132). La recherche existe malgré tout, et elle est juste : la page enrichit chaque ligne du texte alternatif ET du nom de fichier de son média avant de la passer au `<DataTable>`, qui filtre en mémoire (écart nº 51). C'est le seul endroit de la chaîne où les deux informations sont réunies, et le type `LigneGalerie` le dit explicitement. La jointure PostgREST `media_assets!inner(alt_text)` était possible : écartée parce qu'elle aurait changé le type de la projection selon le filtre, donc obligé le mapper à connaître deux formes de ligne. |
+| 142 | **AUCUN repli dans le mapper — et c'est une différence MESURÉE** | Les mappers des Lots 8E et 8F en portaient un : `core_values.icon` est un `text` LIBRE (tout passe), `faq_items.topic` est un `text` avec `check` que le générateur de types ne sait pas lire. `gallery_categories.tone` et `gallery_items.status` sont des **énumérés PostgreSQL**, que le générateur SAIT lire : `database.types.ts` les type exactement comme le domaine. Il n'y a donc rien à convertir, et un repli « par prudence » serait du code mort qu'aucune recette ne pourrait exercer. La recette le vérifie dans les deux sens : le code du mapper n'en contient aucun (suite 1, F11), et la base REFUSE une teinte hors liste par **22P02** (suite 2, C02–C03). |
+| 143 | **`/galerie` passe en `force-dynamic` — SECONDE page entièrement statique convertie** | Après `/impact` au Lot 8G (écart nº 131). Cette page ne lisait rien de la base : sa grille venait d'un `fs.readdirSync` au BUILD. Sans la directive, ajouter une photo depuis le dashboard ne changerait rien jusqu'au prochain déploiement. L'étiquette `cms:page:galerie` est nouvelle. À retirer au Lot 15 avec les autres. |
+| 144 | **DEUX étiquettes de cache seulement, et c'est l'usage réel** | `cms:galerie` et `cms:page:galerie`. Aucune autre page publique n'affiche la galerie — vérifié : la section `gallery-preview` de la page `galerie` est un squelette du seed, sans contenu, et le Lot 9 s'en chargera. `cms:media` n'est PAS invalidée : ces actions ne touchent jamais `media_assets` — un élément RÉFÉRENCE une photo, il ne la modifie pas. Le Lot 8F en avait quatre parce que trois pages lisaient la FAQ ; recopier un nombre plutôt que de suivre l'usage aurait été du gabarit. |
+| 145 | **⚠️ CORRECTIF HORS PÉRIMÈTRE : `storage.ts` RE-ÉTIQUETTE le corps téléversé** | Découverte nº 53, et c'est un défaut RÉEL de la chaîne du Lot 7, trouvé parce que la migration de ce lot a été la première à téléverser depuis autre chose qu'un navigateur. `supabase-js` ignore `contentType` pour un `Blob` : un fichier sans extension était refusé avec un message qui invite à réessayer, et un fichier au type menteur était stocké avec un `Content-Type` que le catalogue contredit. Le corps porte désormais le type lu dans les OCTETS, par `blob.slice(0, size, type)` — sans recopier les données. Vérifié par un `HEAD` sur l'URL publique (suite 2, B03). |
+| 146 | **⚠️ CORRECTIF HORS PÉRIMÈTRE : « Photo nº position + 1 » dans les usages d'un média** | `media.repository.ts` (Lot 7) libellait un usage de galerie `Photo nº ${position + 1}`. Les positions de ce projet sont numérotées **à partir de 1** — le seed écrit 1..N, `reorder_rows` renumérote de 1 à N, les cas d'usage calculent `count() + 1`. La première ligne s'annonçait donc « Photo nº 2 ». Le défaut dormait depuis le Lot 7 pour une raison simple : **cette branche ne pouvait renvoyer aucune ligne**, `gallery_items` étant vide jusqu'à ce lot. C'est le motif récurrent du Lot 8 — la bascule ne casse rien, elle rend atteignable ce que le fichier TypeScript rendait impossible. |
+| 147 | **CORRECTIF DANS LE PÉRIMÈTRE : les boutons de filtre de `/galerie` faisaient 36 px** | `size="sm"` rend un bouton de 36 px, sous les 44 px de la règle 4 du §12. Le défaut dormait depuis le Lot 2 : ce sont les seules commandes de cette section, et aucune recette n'avait encore mesuré `/galerie`. Corrigé par `min-h-11`, comme les deux liens en ligne du Lot 8F (écart nº 122) — la règle ne connaît pas d'exception pour un bouton « petit par choix esthétique ». Mesuré aux cinq largeurs, avant et après (suite 5, C02–C18). |
+| 148 | **Un élément dont la photo ne se résout pas n'est PAS rendu** | C'est le SEUL endroit du site où l'on RETIRE un contenu plutôt que de le remplacer par un `MediaPlaceholder`, et il faut dire pourquoi : dans une grille de photos, une vignette de repli n'est pas un contenu dégradé, c'est une case vide au milieu d'une mosaïque — et la visionneuse l'ouvrirait en grand sur rien. Ailleurs (carte de programme, portrait), le repli accompagne un TEXTE qui reste porteur. L'état est très improbable (`media_id` `not null`, `on delete restrict`) et il est SIGNALÉ dans le dashboard, où quelqu'un peut agir. |
+| 149 | **« Voir sur le site » existe ici SANS RÉSERVE** | Après quatre lots de nuances — pas de lien au 8C (écart nº 86), lien conditionné au 8D (nº 98), lien conditionné à une lecture réelle au 8F — celui-ci est le cas simple : **`/galerie` affiche TOUTES les photos publiées, sans coupe**. Si l'élément est en ligne, il y est, et rien n'a besoin d'être lu pour le savoir. Le lien n'est rendu que sur un élément publié : sur un brouillon il promettrait une page où la photo ne figure pas. Corollaire, écrit dans `gallery.actions.ts` : **le réordonnancement ne peut pas faire disparaître un contenu**, contrairement à l'écart nº 120 du Lot 8F. |
+| 150 | **L'aperçu du formulaire est la VRAIE `<GalleryGrid>`, avec une seule photo** | Même doctrine qu'aux Lots 8E et 8F : un aperçu réécrit à la main est un aperçu qui ment tôt ou tard. Ce qu'il montre et que rien d'autre ne montre : **quel bouton de filtre atteint cette photo**. Choisir « Sans catégorie » fait disparaître le second bouton — la conséquence de l'écart nº 137 devient visible au lieu d'être expliquée, au moment exact où la décision se prend. Il montre aussi le texte alternatif hérité de la médiathèque, en ouvrant la photo, avec un lien vers `/dashboard/mediatheque` pour le corriger — **et non vers une fiche de média, route qui n'existe pas** (la médiathèque ouvre ses fiches en modale) : promettre `/dashboard/mediatheque/<id>` aurait produit un lien mort. |
 
 ---
 
@@ -939,6 +997,110 @@ simplement de se décocher, sans la moindre erreur. **La seule valeur « vide »
 que RHF sait porter est `""`**, et c'est celle qu'il faut utiliser ; le message
 de TYPE du schéma (`z.number("…")`, acquis de l'écart nº 90) est alors ce qui
 rend l'état lisible pour l'utilisateur.
+
+**52. ⚠️ LES OPTIONS D'UN `<Select>` RADIX NE SONT PAS DANS LE HTML SERVI.**
+Troisième membre de la famille des découvertes nº 32 (le `<DataTable>` rend un
+squelette) et nº 45 (l'accordéon fermé ne monte pas ses réponses) : Radix ne
+monte ses `<SelectItem>` qu'à l'OUVERTURE du menu, dans un portail. Une
+assertion HTTP qui cherche « Éducation » dans le texte visible de
+`/dashboard/galerie/nouveau` échoue donc à juste titre.
+
+Ce que la suite HTTP peut légitimement vérifier : que les options sont
+**sérialisées dans la charge utile RSC**, ce qui prouve que la page les a lues
+EN BASE et transmises au composant client. Leur affichage appartient à la suite
+navigateur, après ouverture.
+
+Nuance mesurée au passage, et elle est utile : **la SENTINELLE, elle, n'est pas
+dans la charge utile.** « Sans catégorie » est une constante du domaine lue par
+le composant client — elle voyage dans le bundle JavaScript, pas dans les props.
+La distinction permet de prouver que les options dynamiques viennent bien du
+serveur.
+
+**53. ⚠️ `supabase-js` IGNORE `contentType` QUAND LE CORPS EST UN `Blob`.**
+Trouvé par la migration du Lot 8H, et c'est un **défaut réel de la chaîne de
+téléversement du Lot 7**, pas un détail de banc d'essai. Dans
+`storage-js`, `uploadOrUpdate` construit un `FormData` dès que le corps est un
+`Blob` : le type transmis au bucket est alors **`blob.type`**, jamais l'option
+`contentType`. Celle-ci n'est lue que dans la branche « ni Blob ni FormData ».
+
+Deux conséquences, toutes deux invisibles jusqu'ici :
+
+  * **un fichier sans type est REFUSÉ.** `File.type` est renseigné par le
+    navigateur d'après l'EXTENSION : un JPEG valide nommé « photo », sans
+    extension, arrive avec `type: ""`. Il traverse tout `uploadMedia` — qui, lui,
+    lit les OCTETS — puis se fait refuser par le bucket (« mime type
+    application/octet-stream is not supported »), et l'utilisateur lit « Le
+    fichier n'a pas pu être enregistré. Réessayez. », c'est-à-dire une invitation
+    à refaire ce qui échouera à l'identique ;
+  * **un fichier au type MENTEUR est stocké avec ce mensonge.** Un JPEG renommé
+    `.png` s'annonce `image/png` : les deux types étant acceptés par le bucket,
+    l'objet est écrit avec `Content-Type: image/png` alors que
+    `media_assets.mime_type` — déduit des octets — dit `image/jpeg`. Le catalogue
+    et le CDN se contredisent, et c'est le CDN que voit le visiteur.
+
+Le remède est dans `SupabaseStorage.upload` : le corps est RE-ÉTIQUETÉ avec le
+type réel avant l'envoi, par `blob.slice(0, size, type)` — une vue qui porte le
+nouveau type **sans recopier les octets**. Vérifié par un `HEAD` sur l'URL
+publique (suite 2, B03).
+
+**54. ⚠️ LA PREMIÈRE CAPTURE D'UNE SERVER ACTION PEUT ÊTRE UNE LECTURE.**
+La découverte nº 28 dit de « FIGER LA PREMIÈRE capture », pour ne pas rejouer la
+dernière action — celle pour laquelle l'éditeur a justement les droits. C'était
+juste au Lot 8G, dont l'écran ne faisait aucune lecture par Server Action.
+
+L'écran de ce lot en fait deux au montage : `<MediaField>` et `<ApercuElement>`
+appellent tous deux `lireMediaAction` pour résoudre la photo. La première capture
+était donc une LECTURE, et son rejeu depuis la session de l'éditeur renvoyait
+tranquillement `{"ok":true,"data":{…MediaAsset…}}` — un succès parfaitement
+légitime, que la sonde lisait comme « la garde n'a pas refusé ».
+
+**Règle générale : choisir la capture par son CONTENU, pas par son rang.** On
+collecte toutes les Server Actions et on retient celle dont la charge utile
+désigne l'élément visé ET l'état demandé. La suite 4 vérifie en outre qu'il y
+avait bien d'autres appels avant, pour que la parade reste justifiée le jour où
+l'écran change.
+
+**55. ⚠️ ON NE FORCE PAS UN THÈME EN POSANT SA CLASSE — `next-themes` LA REPREND.**
+La sonde de contraste du Lot 8H faisait
+`document.documentElement.classList.add("dark")`. Elle a rapporté TROIS échecs —
+les libellés de la barre latérale à **1,06:1** — qui n'existent pas.
+
+`next-themes` resynchronise `<html>` avec le thème stocké : la classe posée de
+l'extérieur disparaît en cours de mesure, et la sonde compose alors un FOND déjà
+repeint en sombre avec une COULEUR DE TEXTE encore claire. Le rapport obtenu ne
+décrit **aucun état que l'application produit**, et il accusait un composant du
+Lot 5 livré et recetté.
+
+La parade : écrire le thème **là où l'application le lit** (`localStorage`, clé
+`theme`), RECHARGER, vérifier que la classe est bien là — **et revérifier après
+la mesure qu'elle a tenu**. Une bascule qui ne tient pas doit invalider la
+mesure, pas la faire échouer en silence.
+
+C'est la découverte nº 10 dans sa version la plus retorse : la sonde ne s'était
+pas trompée de calcul, elle avait mesuré un instant qui n'existe pas.
+
+**56. UNE SONDE QUI MESURE ZÉRO « PASSE » — ET NE PROUVE RIEN.**
+Deux fois dans le même lot :
+
+  * `verifier(cree?.category_id !== null)` réussissait quand l'élément
+    n'existait pas (`undefined !== null` vaut `true`) ;
+  * `insuffisants.length === 0` réussissait quand la sonde de contraste n'avait
+    trouvé aucun texte à mesurer.
+
+Un test qui réussit parce que sa donnée manque est pire qu'un test absent : il
+occupe la place d'une vérification. Toute sonde qui COMPTE doit donc exiger
+`mesures > 0`, et toute assertion sur une donnée lue doit commencer par vérifier
+qu'elle existe.
+
+**57. UN LIBELLÉ DE COMMANDE EST SOUVENT LE PRÉFIXE D'UN AUTRE.**
+Découverte nº 42 (« un titre de contenu est souvent un mot courant »), transposée
+aux boutons. `cliquerTexte("Ajouter")` cherchait dans la page entière et trouvait
+**« Ajouter une photo »**, le bouton primaire de l'en-tête — qui contient bien
+« Ajouter ». Le clic partait vers un autre écran, la catégorie n'était jamais
+créée, et l'échec apparaissait deux assertions plus loin.
+
+Un clic de recette se BORNE à son conteneur (la modale, la ligne, la section) et
+compare le texte de façon EXACTE dès qu'un libellé plus long peut le contenir.
 
 **COMPLÉMENT DU LOT 8E à la découverte nº 35 (disque).** Le disque est retombé à
 **30 Mo** avant la recette. Cette fois `.next/dev` n'existait pas (aucun
@@ -1621,58 +1783,172 @@ retiré ensuite ; base vérifiée identique à son état de départ (4 chiffres,
 
 ---
 
-## Prochaine étape : Lot 8H — galerie
+## Ce qu'a livré le Lot 8H (détail)
 
-Voir la table des lots 8B → 8I du Rapport 2. Spécificités annoncées :
-**assemblage médiathèque + catégorie**, et le remplacement de la lecture disque
-de `src/content/galerie.ts`.
+### Fichiers
 
-⚠️  **C'est le premier lot du Lot 8 dont la source de vérité est un FICHIER, pas
-un tableau TypeScript.** Le §8H l'écrit : « la convention de nommage
-`categorie-NN.jpg` disparaît : la catégorie devient une colonne. Le fichier
-`legendes.json` est migré vers `media_assets.alt_text`. » Les écarts nº 85 et 97
-sont donc à relire avant d'écrire une ligne : **deux fois déjà, un pont vers
-`/public` a été refusé** parce que la convention de nommage était indexée sur un
-identifiant qui n'existe plus en base. Ici, la question se pose différemment —
-les fichiers de la galerie existent vraiment et sont nombreux — et elle mérite
-d'être tranchée explicitement plutôt que par réflexe.
+| Fichier | Rôle |
+|---|---|
+| `src/core/cms/entities/gallery.ts` | `GalleryItem`, `GalleryCategory` et leurs types d'écriture, `CATEGORIE_ABSENTE`, `TEINTE_SANS_CATEGORIE`, `apparaitDansUnFiltre()`, `categoriesAffichees()`, `teinteDeLElement()`, `libelleDeLaCategorie()`. **Les trois règles d'affichage de la page publique vivent ici**, parce que le dashboard doit pouvoir les DIRE |
+| `src/core/cms/schemas/gallery.schema.ts` | 11 schémas. `mediaId` obligatoire avec un message qui parle de PHOTO ; `categoryId` nullable ; `tone` en `z.enum` ; sentinelle `SANS_CATEGORIE` pour Radix ; messages français aux trois niveaux dès la première version |
+| `src/core/cms/ports/gallery.port.ts` | Quatre interfaces (élément × lecture/écriture, catégorie × lecture/écriture) et deux regroupements. **`countByCategory` et `countByMedia`** — les deux clés étrangères de la table la plus liée du Lot 8 |
+| `src/core/use-cases/gallery/*.ts` | `create` (catégorie vérifiée), `update` (statut neutralisé, déclassement autorisé), `delete` (renumérotation), `reorder`, `setStatus`, `get`, `list` (+ `listPublished`), et `manage-gallery-categories.ts` (5 fonctions) |
+| `src/core/testing/in-memory-gallery.repository.ts` | Deux dépôts en mémoire — **avec la même limite de recherche que les vrais** |
+| `src/infrastructure/supabase/mappers/gallery.mapper.ts` | **Le fichier le plus sensible du lot** : `toGalleryItemUpdate` distingue `undefined` (non transmis) de `null` (déclassement). Aucun repli — les deux colonnes sont des énumérés (écart nº 142) |
+| `src/infrastructure/supabase/repositories/gallery-item.repository.ts` | Liste blanche de tri, `nullsFirst: false`, `countByCategory`, `countByMedia`, `reorder_rows('gallery_items')`, **et `filter.search` IGNORÉ, avec son motif écrit en tête** |
+| `src/infrastructure/supabase/repositories/gallery-category.repository.ts` | Dépôt séparé — les deux tables n'ont pas les mêmes droits en base |
+| `src/server/deps/gallery.deps.ts` | Un client, deux dépôts ; deux fabriques d'écriture, deux ports de lecture seule |
+| `src/server/actions/gallery.actions.ts` | 5 actions. Deux étiquettes, dont `cms:page:galerie` qui est nouvelle |
+| `src/server/actions/gallery-categories.actions.ts` | 4 actions. **`gallery:publish` pour la création** — écart nº 70 qui se rejoue |
+| `src/server/queries/gallery.query.ts` | `getElementsGalerie()` et `getCategoriesGalerie()`. L'en-tête compare ligne à ligne ce que faisait la lecture de disque et ce qui la remplace |
+| `src/components/dashboard/gallery/gallery-item-form.tsx` | 2 champs — **premier appelant qui EXIGE une photo**. `<ApercuElement>` rend la vraie `<GalleryGrid>` et montre quel filtre atteindra la photo |
+| `src/components/dashboard/gallery/gallery-client.tsx` | Liste : 4 colonnes, 2 filtres, recherche sur un texte venu d'une autre table, bandeau à cinq messages (photos en ligne, sans catégorie, catégories vides, doublons, photos illisibles) |
+| `src/components/dashboard/gallery/gallery-item-editeur.tsx` | Fiche : publier / dépublier / retirer, lien « Visible sur » sans réserve, avertissement de classement |
+| `src/components/dashboard/gallery/gallery-categories-modal.tsx` | Modale : ajout, renommage, **teinte**, réordonnancement, décompte par ligne, droits reproduits à l'identique de la RLS |
+| `src/app/(dashboard)/dashboard/galerie/{,nouveau/,[id]/}page.tsx` | Les trois écrans. L'entrée de navigation existait depuis le Lot 5 et menait à une 404 |
+| `src/app/(site)/galerie/page.tsx` | **Bascule** : lecture en base, résolution des médias, section conditionnelle, ancre `#galerie`, `force-dynamic` |
+| `src/components/galerie/gallery-grid.tsx` | **MODIFIÉ** : boutons de filtre portés à 44 px (écart nº 147). L'API du composant est inchangée |
+| `src/infrastructure/storage/storage.ts` | **MODIFIÉ, hors périmètre** : le corps téléversé est ré-étiqueté avec le type réel (écart nº 145) |
+| `src/infrastructure/supabase/repositories/media.repository.ts` | **MODIFIÉ, hors périmètre** : « Photo nº position », sans le `+ 1` (écart nº 146) |
+| `src/content/galerie.ts` | En-tête récrit — plus importé, gardé comme référence jusqu'au Lot 16 |
 
-`gallery_items` porte un `status` (migration 0005) : c'est le gabarit des Lots
-8A–8D et 8F qu'il faut reprendre, **et non celui du Lot 8E/8G**. Vérifier dans
-la migration, pas de mémoire.
+### Recette exécutée — 489 vérifications, 0 échec
 
-Ce que le Lot 8G lègue de réutilisable :
+| Suite | Vérifs | Portée |
+|---|---|---|
+| 1 · code pur | 124 | entité et règles d'affichage (14), invariants cherchés dans le CODE (9), **11 schémas × 10 charges hostiles** sans un seul message anglais, 33 vérifications de cas d'usage, catégories (22), mappers dont **les trois états du PATCH**, matrice RBAC comparée terme à terme aux permissions réellement déclarées par les 9 actions, et le dépôt en mémoire jusque dans ce qu'il NE FAIT PAS |
+| 2 · infrastructure (base réelle) | 74 | **les 4 lignes migrées comparées champ par champ à ce que `src/content/galerie.ts` produisait** (fichier, texte alternatif, catégorie, ordre, dossier, bucket, type MIME, nom régénéré, dimensions) ; **le `Content-Type` réellement servi par le CDN** ; ce que la base autorise vraiment (22P02 sur la teinte, 23502 sans média, 23503 sur les deux clés étrangères, `category_id` nullable, même photo deux fois) ; tri, `null` en queue, `reorder_rows` ; RLS anonyme (insertion **rejetée**, écriture **filtrée**), éditeur (**il crée et modifie, il ne publie ni ne supprime, et ne crée aucune catégorie**), administrateur |
+| 3 · HTTP (`next start`) | 80 | `/galerie` alimentée par la base — les quatre textes alternatifs migrés, les quatre boutons, l'ancre, **les vignettes qui viennent de Storage et plus de `/public`** ; 10 pages publiques intactes ; sitemap inchangé et **sans adresse nouvelle** ; gardes anonymes ; 3 écrans × 2 rôles ; 404 sur un identifiant inconnu **et sur un identifiant qui n'est pas un UUID** ; titres d'onglet |
+| 4 · parcours navigateur (CDP) | 101 | liste + colonnes + vignettes + bandeaux, **recherche par description ET par nom de fichier**, refus d'enregistrer sans photo (message + `role=alert` + icône), **les 5 options du `<Select>` qui n'apparaissent qu'à l'ouverture**, choix d'un média dans la médiathèque, aperçu, création relue EN BASE, **déclassement → `NULL` relu en base**, publication, effet sur la page publique (5 photos, 5 boutons, filtre qui exclut la non classée, visionneuse), modale des catégories × 2 rôles, **rejeu d'une Server Action depuis la session de l'éditeur → `FORBIDDEN`**, « Monter » d'UN rang, suppression nommée qui laisse le fichier, audit produit puis purgé |
+| 5 · responsive / a11y | 110 | 3 écrans × 5 largeurs (débordement, 44 px, noms accessibles, 16 px sous `md:`), bascule 767/768 px, **section `#galerie` × 5 largeurs bornée à son périmètre** (débordement, cibles, nombre de colonnes), zoom 200 %, contraste AA **clair et sombre** sur 4 périmètres (257 couples composés), relevé hors périmètre affiché et non compté |
 
-- **le gabarit est stable sur sept collections**, en deux variantes : à cycle
-  éditorial (8A–8D, 8F) et à visibilité binaire (8E, 8G — la série est close,
-  `stats` et `core_values` sont les deux seules tables sans `status`) ;
-- **`<MediaPicker>` et `<CmsImage>` (Lot 7) n'ont encore qu'un appelant** : la
-  médiathèque elle-même, et le champ `media` de trois formulaires. Le Lot 8H en
-  fera le cœur de son écran — même situation que `kind: "number"` pour ce
-  lot-ci, avec la leçon qui va avec : **un composant sans appelant réel n'est
-  pas éprouvé** (point retenu nº 1) ;
-- **le module CDP est à réécrire à chaque lot**, mais ses parades sont acquises :
-  dimensionnement de la cible (nº 31), `pointerdown` pour Radix (nº 30), attente
-  de condition (nº 33), saisie relue (nº 37), contexte isolé par rôle (nº 36),
-  casse des en-têtes (nº 39), purge à l'entrée (nº 40), dimensionner avant de
-  chercher un `tbody` (nº 41), borner présence et ordre à la section (nº 42–43),
-  IIFE async dans `Runtime.evaluate` (nº 46), attendre la mutation, pas la
-  capture (nº 47), **attendre l'HYDRATATION et redémarrer le serveur (nº 48)**,
-  **composer la zone sensible réelle d'une cible (nº 49)**, **borner la règle des
-  16 px sous `md:` (nº 50)** ;
-- **le rejeu d'une Server Action capturée** : patcher `window.fetch` dans la
-  session de l'administrateur, attendre la MUTATION (nº 47), relire la capture,
-  puis la rejouer depuis la session de l'éditeur. C'est le seul moyen d'exercer
-  `createAction` elle-même — une garde d'écran ne prouve rien sur une frontière
-  joignable sans passer par l'écran. Le Lot 8G a mesuré un vrai `FORBIDDEN` par
-  ce chemin ;
-- **purger le journal d'audit en fin de recette** : deux lots de suite l'ont
-  fait, `audit_logs` n'a pas bougé ;
-- **vérifier le disque AVANT de commencer** (nº 35) : `npm-cache` d'abord, puis
-  `.next/dev`, puis `.next/cache`. Il restait 7,4 Go au démarrage de ce lot, ce
-  qui a suffi sans purge.
+Les cinq suites ont été rejouées d'affilée sur l'arbre final, toutes à 0 échec et
+code de sortie 0. Banc entièrement retiré ensuite ; base vérifiée : 4 éléments
+publiés en positions 1-4, 4 catégories, 5 médias, **1 seul profil**, et
+**`audit_logs` sans aucune entrée `gallery*`**.
+
+### Trois points retenus
+
+1. **Un chemin de code qu'aucune donnée n'atteint n'est pas éprouvé.** Deux
+   défauts réels dormaient depuis le Lot 7, et ils ont été réveillés par la même
+   cause : `gallery_items` était VIDE. Le libellé « Photo nº 2 » pour la
+   position 1 (écart nº 146) vivait dans une branche qui ne pouvait renvoyer
+   aucune ligne ; le téléversement au type ignoré (écart nº 145) n'avait jamais
+   rencontré autre chose qu'un navigateur, qui renseigne toujours `File.type`.
+   C'est la leçon nº 1 du Lot 8G — « un champ écrit sans appelant est un champ
+   non livré » — appliquée non plus à un composant mais à une TABLE.
+2. **La sonde qui accuse est plus dangereuse que la sonde qui dort.** Trois fois
+   dans ce lot, une mesure a désigné du code correct : les options d'un
+   `<Select>` absentes du HTML servi (nº 52), la première capture d'action qui
+   était une lecture (nº 54), et surtout un thème forcé que `next-themes`
+   reprenait en cours de mesure (nº 55) — cette dernière rapportait **1,06:1 sur
+   la barre latérale du Lot 5**, un composant livré et recetté. « Corriger »
+   l'un de ces trois aurait cassé quelque chose qui marche. La découverte nº 44
+   se lit dans les deux sens, et il faut savoir de quel côté on est AVANT de
+   toucher au code.
+3. **Un test qui réussit parce que sa donnée manque occupe la place d'une
+   vérification** (découverte nº 56). `undefined !== null` vaut `true` ;
+   `insuffisants.length === 0` est vrai quand rien n'a été mesuré. Les deux ont
+   été trouvés dans ce lot, et les deux passaient en vert. Toute sonde qui
+   compte exige désormais `mesures > 0`, et toute assertion sur une donnée lue
+   commence par vérifier qu'elle existe.
+
+### Points de vigilance légués
+
+- **⚠️ Déposer un fichier dans `public/images/galerie/` ne fait PLUS rien.**
+  C'était la promesse de `src/content/galerie.ts` — « l'association dépose ses
+  photos en respectant la convention `categorie-NN.jpg` et elles apparaissent
+  automatiquement ». La marche à suivre est désormais : Médiathèque →
+  téléverser, puis Galerie → « Ajouter une photo ». C'est un geste de plus, et
+  c'est le prix du reste : une photo cataloguée porte sa description
+  (obligatoire, WCAG 1.1.1), son auteur, ses usages et son statut.
+- **⚠️ Les quatre textes alternatifs migrés sont ceux que le site GÉNÉRAIT** —
+  « Action ADEBES — éducation (photo 1) ». Ils ne décrivent pas les photos : ils
+  disent seulement de quelle catégorie elles relèvent. Ce n'est pas un contenu
+  inventé (c'est exactement ce qui était affiché), et il devient enfin
+  corrigeable, depuis la médiathèque. **À reprendre par l'utilisateur, une photo
+  à la fois.** C'est le premier vrai bénéfice du lot pour un lecteur d'écran.
+- **⚠️ Un ÉDITEUR peut RENOMMER une catégorie et RÉORDONNER la grille** sans
+  avoir `gallery:publish`. Renommer change le libellé d'un bouton de filtre sur
+  la page publique. Ce n'est PAS de la même famille que les écarts nº 104, 120
+  et 130 — rien ne disparaît, aucun contenu n'est retiré du site — mais c'est le
+  quatrième endroit où un éditeur modifie ce que voit un visiteur. La liste
+  s'allonge ; elle mérite d'être regardée d'un bloc, une fois, plutôt que lot
+  par lot.
+- **Le relevé hors périmètre de `/galerie` à 390 px** : 4 cibles sous 44 px, et
+  **aucune dans `#galerie`** — « Aller au contenu principal » (32 × 16), le
+  bouton « Don » de l'en-tête (73 × 36), le téléphone et l'e-mail du pied de
+  page (127 × 20 et 136 × 20). Mêmes familles que le relevé du Lot 8F. À traiter
+  au Lot 12.
+- **Le sitemap ne gagne aucune adresse** : une photo n'a pas de page à elle.
+  Vérifié (suite 3, B13).
+- **`rate_limits` intact** : 4 lignes, dont les deux clés de l'adresse réelle de
+  l'utilisateur. Les recettes n'ont remis à zéro que les clés `connexion:` de la
+  boucle locale.
+- **Les trous des écarts nº 90, 99 et 102 existent toujours** dans
+  `programme.schema.ts`, `article.schema.ts` et `testimonial.schema.ts`. Le
+  remède est écrit et éprouvé cinq fois (8D à 8H). À appliquer au Lot 16.
+- **`/programmes` annonce « Huit domaines d'intervention » et l'accueil « Voir
+  les 8 programmes »** — écart nº 107, toujours ouvert. `src/lib/nombres.ts` est
+  prêt. La galerie, elle, n'annonce aucun nombre en dur : son compteur
+  (« 4 photos ») est dérivé de la sélection courante, y compris filtrée.
 
 ---
+
+## Prochaine étape : Lot 8I — documents
+
+Voir la table des lots 8B → 8I du Rapport 2. C'est le **dernier** lot de la
+série 8, et le §8I tient en une ligne : « rapports annuels PDF · année · le lien
+public n'apparaît que si le fichier existe ».
+
+`annual_reports` porte un `status` (migration 0005) : c'est le gabarit des Lots
+8A–8D, 8F et 8H qu'il faut reprendre, **et non celui du Lot 8E/8G**. Vérifier
+dans la migration, pas de mémoire.
+
+⚠️  **Ce lot ressemble à celui-ci plus qu'à aucun autre, et c'est le piège.**
+`annual_reports.document_media_id` est une référence de média en
+`on delete restrict` — comme `gallery_items.media_id` — mais elle est
+**NULLABLE**. Toute la logique du Lot 8H tient au fait que la sienne ne l'était
+pas : garde de publication, absence de repli, retrait plutôt que placeholder.
+Ici, un rapport SANS PDF est un état normal, et c'est même celui des deux lignes
+seedées. Le §8I l'écrit : « le comportement actuel (lien masqué si le PDF est
+absent) est conservé, la vérification portant désormais sur l'existence du média
+en base ». Recopier le Lot 8H sans voir cette différence produirait une garde
+qui empêche de publier les deux seuls rapports existants.
+
+Ce que le Lot 8H lègue de réutilisable :
+
+- **le gabarit est stable sur huit collections**, en deux variantes : à cycle
+  éditorial (8A–8D, 8F, 8H) et à visibilité binaire (8E, 8G — série close) ;
+- **le patron « une collection dans la collection »** (catégories gérables en
+  modale) a maintenant deux instances, 8B et 8H, et elles ne diffèrent que par
+  une colonne. La troisième, s'il y en a une, n'aura rien à inventer ;
+- **`<MediaPicker>` a désormais un appelant qui l'EXIGE**, et le Lot 8I sera le
+  premier à s'en servir pour un DOCUMENT (`accept: "document"`, bucket
+  `documents`, 20 Mo). ⚠️ Ce chemin-là n'a jamais été exercé par un écran réel :
+  s'attendre à y trouver ce que ce lot a trouvé sur les images ;
+- **la migration d'un fichier de `/public` vers Storage** est écrite et éprouvée
+  (idempotente, dimensions mesurées, texte alternatif repris à l'identique). Les
+  deux rapports annuels n'ont AUCUN PDF sur le disque — vérifié au Lot 1, écart
+  nº 14 — il n'y aura donc rien à migrer, mais la marche à suivre existe si un
+  fichier apparaît ;
+- **le module CDP est à réécrire à chaque lot**, et ses parades sont acquises :
+  dimensionner avant de mesurer (nº 31, 41), attendre une condition (nº 33) et
+  la BONNE (nº 48), saisie relue (nº 37), contexte isolé par rôle (nº 36), casse
+  des en-têtes (nº 39), purge à l'entrée (nº 40), bornage au périmètre
+  (nº 42–43), IIFE async (nº 46), attendre la mutation (nº 47), zone sensible
+  composée (nº 49), 16 px sous `md:` (nº 50), **options de Radix absentes du
+  HTML (nº 52)**, **capture choisie par son contenu (nº 54)**, **thème écrit
+  dans `localStorage` puis rechargé (nº 55)**, **sonde qui mesure zéro (nº 56)**,
+  **libellé préfixe d'un autre (nº 57)** ;
+- **purger le journal d'audit en fin de recette** : trois lots de suite l'ont
+  fait, `audit_logs` n'a pas bougé d'une ligne du fait des recettes ;
+- **vérifier le disque AVANT de commencer** (nº 35) : `npm-cache` d'abord, puis
+  `.next/dev`, puis `.next/cache`. Il restait 4,1 Go au démarrage de ce lot et
+  2,7 Go après les premiers `next build` — suffisant, mais la marge se réduit.
+
+---
+
 
 
 ## Ce qu'a livré le Lot 6 (détail)

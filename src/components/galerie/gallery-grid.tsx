@@ -74,6 +74,20 @@ export function GalleryGrid({
 
   return (
     <div>
+      {/*
+        ⚠️  CORRECTIF DU LOT 8H — les boutons de filtre faisaient 36 px de haut.
+
+        `size="sm"` rend un bouton de 36 px, sous les 44 px qu'exige la règle 4
+        du §12. Le défaut dormait depuis le Lot 2 : ce sont les SEULES commandes
+        de cette section, et aucune recette n'avait encore mesuré la page
+        `/galerie`.
+
+        Il est corrigé DANS le périmètre du lot, comme les deux liens en ligne
+        du Lot 8F (écart nº 122) : la section est celle que ce lot livre, et la
+        règle ne connaît pas d'exception pour un bouton « petit par choix
+        esthétique ». `min-h-11` porte la cible à 44 px sans changer la taille
+        du texte ni la densité de la rangée — mesuré aux cinq largeurs.
+      */}
       <div
         role="group"
         aria-label="Filtrer la galerie par catégorie"
@@ -82,6 +96,7 @@ export function GalleryGrid({
         <Button
           variant={active === "all" ? "default" : "outline"}
           size="sm"
+          className="min-h-11"
           aria-pressed={active === "all"}
           onClick={() => {
             setActive("all");
@@ -96,6 +111,7 @@ export function GalleryGrid({
             key={category.slug}
             variant={active === category.slug ? "default" : "outline"}
             size="sm"
+            className="min-h-11"
             aria-pressed={active === category.slug}
             onClick={() => {
               setActive(category.slug);

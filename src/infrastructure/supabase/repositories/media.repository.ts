@@ -334,9 +334,23 @@ export class SupabaseMediaRepository implements MediaReadPort, MediaWritePort {
 
       ...galerie.map((ligne) => ({
         resource: "Galerie",
-        // `gallery_items` n'a pas de titre : la position est le seul repère
-        // dont dispose l'utilisateur pour retrouver l'élément à l'écran.
-        label: `Photo nº ${ligne.position + 1}`,
+        /*
+          `gallery_items` n'a pas de titre : la position est le seul repère
+          dont dispose l'utilisateur pour retrouver l'élément à l'écran.
+
+          ⚠️  CORRECTIF DU LOT 8H — la position était affichée `+ 1`.
+          Les positions de ce projet sont numérotées **à partir de 1** : le seed
+          écrit 1..N, `reorder_rows` renumérote de 1 à N, et les cas d'usage
+          calculent `count() + 1`. La ligne en position 1 s'annonçait donc
+          « Photo nº 2 », et la dernière d'une grille de quatre « Photo nº 5 ».
+
+          Le défaut dormait depuis le Lot 7 pour une raison simple : **cette
+          branche ne pouvait renvoyer aucune ligne** — `gallery_items` était
+          vide jusqu'à la migration de ce lot. C'est le motif récurrent du
+          Lot 8 : la bascule ne casse rien, elle rend atteignable ce que le
+          fichier TypeScript rendait impossible.
+        */
+        label: `Photo nº ${ligne.position}`,
         id: ligne.id,
         field: "Image",
         // `on delete restrict` (migration 0005) : la base refuserait.

@@ -5,16 +5,44 @@ import type { MediaTone } from "@/components/media/media-placeholder";
 import { mediaExtensionRank } from "@/lib/media";
 
 /**
- * Galerie photo.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *  ⚠️  CE FICHIER N'EST PLUS IMPORTÉ PAR AUCUNE PAGE — LOT 8H
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * La galerie vit désormais en base : `gallery_categories` et `gallery_items`,
+ * lues par `src/server/queries/gallery.query.ts`. `/galerie` est la seule page
+ * qui l'affichait, et elle a basculé.
+ *
+ * ---------------------------------------------------------------------------
+ * CE QUE CE FICHIER FAISAIT, ET CE QUI L'A REMPLACÉ
+ * ---------------------------------------------------------------------------
+ * | Ici (jusqu'au Lot 8H)                  | Désormais                        |
+ * |----------------------------------------|----------------------------------|
+ * | `fs.readdirSync` au build              | une lecture SQL à chaque requête |
+ * | catégorie = préfixe du nom de fichier  | `gallery_items.category_id`      |
+ * | légendes dans `legendes.json`          | `media_assets.alt_text`, NOT NULL |
+ * | ordre = tri alphabétique du nom        | `gallery_items.position`         |
+ * | teinte = tableau littéral ci-dessous   | `gallery_categories.tone`        |
+ *
+ * Les quatre photographies de `public/images/galerie/` ont été MIGRÉES —
+ * téléversées dans Storage, cataloguées, puis rattachées à leur catégorie —
+ * avec exactement les textes alternatifs que ce fichier générait. Les fichiers
+ * restent sur le disque : ils ne sont plus lus, et la médiathèque en détient
+ * désormais la copie de référence.
+ *
+ * ⚠️  Déposer un fichier dans `public/images/galerie/` ne le fait donc PLUS
+ * apparaître sur le site. La marche à suivre est : Médiathèque → téléverser,
+ * puis Galerie → « Ajouter une photo ».
+ *
+ * Conservé comme référence jusqu'au Lot 16, où les fichiers de `src/content/`
+ * seront retirés ensemble.
+ *
+ * ---------------------------------------------------------------------------
+ * Documentation d'origine, pour mémoire :
  *
  * Le filtre par catégorie de l'ancien site était un bon pattern (audit §2) et
  * est conservé. En revanche, la galerie ne référence plus de fichiers en dur :
  * elle **lit le contenu réel** de `public/images/galerie/` au moment du build.
- *
- * Conséquence pratique : l'association dépose ses photos en respectant la
- * convention `categorie-NN.jpg` et elles apparaissent automatiquement, sans
- * intervention d'un développeur. Ni image cassée (constat #4), ni liste
- * codée en dur à maintenir.
  *
  * Les textes alternatifs peuvent être fournis dans un fichier
  * `public/images/galerie/legendes.json` :
