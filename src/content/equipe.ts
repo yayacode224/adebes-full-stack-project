@@ -20,9 +20,34 @@ import { TODO } from "@/lib/site-config";
  * `equipe-*.jpeg` restent dans `public/images/a-propos/` : pour les réutiliser,
  * les téléverser dans la médiathèque et les choisir dans le champ « Photo ».
  *
- * ⚠️  `rapports`, EN REVANCHE, EST TOUJOURS UTILISÉ par `/impact`. Il migrera
- * vers la table `annual_reports` à son propre lot ; ne pas supprimer ce fichier
- * avant.
+ * ⚠️  `rapports` N'EST PLUS IMPORTÉ NON PLUS DEPUIS LE LOT 8I.
+ *
+ * Les rapports d'activité viennent de la table `annual_reports`
+ * (`server/queries/annual-report.query.ts`) et se gèrent dans
+ * `/dashboard/documents`. Le tableau ci-dessous reste pour sa valeur de
+ * référence, comme le reste du fichier, et sera retiré au Lot 16.
+ *
+ * ⚠️  DEUX CHOSES QU'IL FAISAIT ET QUI NE SE FONT PLUS :
+ *
+ *   1. **Les années étaient CALCULÉES** — `getFullYear() - 1` et `- 2`. Le site
+ *      aurait donc promis un « Rapport d'activité 2026 » le 1er janvier
+ *      prochain, sans que personne l'ait écrit ni qu'aucun document existe.
+ *      Elles sont figées en base depuis le seed du Lot 1, comme les chiffres de
+ *      l'écart nº 23.
+ *   2. **Déposer un PDF dans `public/documents/` ne fait PLUS rien.** C'était
+ *      la promesse du champ `file` : le lien apparaissait dès que le fichier
+ *      était présent au bon chemin. La marche à suivre est désormais :
+ *      Médiathèque → téléverser le PDF, puis Documents → rattacher le fichier
+ *      au rapport. Un geste de plus, et c'est le prix du reste — un document
+ *      catalogué porte son poids, son type réel et ses usages, et ne peut plus
+ *      être supprimé par accident tant qu'un rapport pointe dessus.
+ *
+ * Ce dossier `public/documents/` n'a d'ailleurs jamais existé : les deux
+ * rapports s'affichaient en permanence avec la pastille « Bientôt disponible ».
+ *
+ * ---------------------------------------------------------------------------
+ * PLUS AUCUN EXPORT DE CE FICHIER N'EST IMPORTÉ PAR UNE PAGE. Le Lot 16 peut le
+ * supprimer entièrement.
  *
  * ---------------------------------------------------------------------------
  * L'audit note (§4.9) l'absence totale d'information institutionnelle. Pour un

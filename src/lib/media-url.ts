@@ -81,6 +81,50 @@ export function urlMedia(
 }
 
 /**
+ * L'URL d'un média À TÉLÉCHARGER, ou `null` — ajout du Lot 8I.
+ *
+ * ---------------------------------------------------------------------------
+ * POURQUOI L'ATTRIBUT `download` NE SUFFIT PAS
+ * ---------------------------------------------------------------------------
+ * `<a href="…" download>` est **ignoré par le navigateur dès que la cible est
+ * d'une autre origine** — règle du HTML, pas une particularité de Supabase. Or
+ * nos fichiers sont servis par `<projet>.supabase.co`, jamais par notre
+ * domaine : le PDF s'ouvrirait donc dans un onglet au lieu d'être enregistré,
+ * sous un bouton qui promet « Télécharger ».
+ *
+ * Avant la bascule, la question ne se posait pas : le chemin était
+ * `/documents/rapport-activite-2025.pdf`, servi par Next depuis `/public`, donc
+ * de MÊME origine, et `download` fonctionnait. Le comportement doit être
+ * reproduit, pas perdu — c'est le critère de parité du §8x.
+ *
+ * Supabase Storage l'obtient côté serveur : le paramètre `?download=<nom>` fait
+ * répondre le CDN avec un en-tête `Content-Disposition: attachment;
+ * filename="<nom>"`. C'est ce que produit `getPublicUrl(path, { download })` du
+ * SDK ; on l'écrit ici plutôt que d'appeler le SDK, pour la raison donnée en
+ * tête de fichier — ce module est importé par des composants clients, qui n'ont
+ * pas de client Supabase.
+ *
+ * ⚠️  Le nom proposé est celui d'ORIGINE (`filename`), pas le nom régénéré du
+ * bucket : personne ne veut retrouver `a3f9c1e2-….pdf` dans ses
+ * téléchargements. Il est encodé — un nom d'origine peut contenir des espaces
+ * et des accents.
+ *
+ * ⚠️  Reste sur `/object/public/`, comme `urlMedia` : voir l'avertissement
+ * ci-dessus sur `/render/image/`.
+ */
+export function urlTelechargementMedia(
+  asset: Pick<MediaAsset, "bucket" | "path" | "filename"> | null | undefined,
+): string | null {
+  const base = urlMedia(asset);
+  if (!base) return null;
+
+  const nom = asset?.filename?.trim();
+  return nom
+    ? `${base}?download=${encodeURIComponent(nom)}`
+    : `${base}?download`;
+}
+
+/**
  * `next/image` doit-il laisser ce fichier tel quel ?
  *
  * Deux cas :

@@ -10,25 +10,37 @@ import { Button } from "@/components/ui/button";
 import { CTABanner } from "@/components/ui-ext/cta-banner";
 import { Reveal } from "@/components/ui-ext/reveal";
 import { SectionHeading } from "@/components/ui-ext/section-heading";
-import { rapports } from "@/content/equipe";
-import { resolveMedia } from "@/lib/media";
+import {
+  MENTION_AVEC_DOCUMENT,
+  MENTION_SANS_DOCUMENT,
+  PASTILLE_SANS_DOCUMENT,
+} from "@/core/cms/entities/annual-report";
+import { urlTelechargementMedia } from "@/lib/media-url";
 import { contact } from "@/lib/site-config";
+import { getRapportsAnnuels } from "@/server/queries/annual-report.query";
+import { resoudreMedias } from "@/server/queries/media.query";
 import { getChiffresAffiches } from "@/server/queries/stats.query";
 
 /**
  * ⚠️  `force-dynamic` — TRANSITOIRE, À RETIRER AU LOT 15.
  *
  * Cette page était entièrement STATIQUE avant le Lot 8G : tout son contenu
- * venait de `src/content/`. La section « Nos chiffres » lit désormais la base.
+ * venait de `src/content/`. La section « Nos chiffres » lit la base depuis ce
+ * lot-là, et la section « Rapports d'activité » depuis le Lot 8I.
  *
  * Sans cette directive, `/impact` serait prérendue au build : corriger le
  * nombre de bénéficiaires depuis le dashboard laisserait l'ancienne valeur sur
- * la page qui promet la transparence, jusqu'au prochain déploiement — et
- * l'étiquette `cms:page:impact` que `stats.actions.ts` invalide ne servirait à
- * rien.
+ * la page qui promet la transparence, jusqu'au prochain déploiement — et les
+ * étiquettes `cms:page:impact` qu'invalident `stats.actions.ts` **et**
+ * `annual-reports.actions.ts` ne serviraient à rien.
  *
- * Le raisonnement complet, et la marche à suivre au Lot 15, sont dans l'en-tête
- * de `src/server/queries/stats.query.ts`.
+ * ⚠️  Une seule directive pour DEUX collections : le Lot 8I n'a rien eu à
+ * ajouter ici, et c'est le premier de la série dans ce cas. Au Lot 15, la
+ * retirer libérera les deux lectures ensemble — ne pas la supprimer en ne
+ * pensant qu'à l'une.
+ *
+ * Le raisonnement complet, et la marche à suivre au Lot 15, sont dans les
+ * en-têtes de `stats.query.ts` et de `annual-report.query.ts`.
  */
 export const dynamic = "force-dynamic";
 
@@ -68,14 +80,67 @@ const engagements = [
 ];
 
 export default async function ImpactPage() {
-  /**
-   * Un rapport n'est proposé au téléchargement que si le PDF a réellement été
-   * déposé dans /public/documents/ : jamais de lien de téléchargement mort.
-   */
-  const rapportsDisponibles = rapports.map((rapport) => ({
-    ...rapport,
-    available: resolveMedia(rapport.file).available,
-  }));
+  /*
+    ═══════════════════════════════════════════════════════════════════════════
+     LES RAPPORTS VIENNENT DE LA BASE AU LOT 8I
+    ═══════════════════════════════════════════════════════════════════════════
+
+    Avant : un tableau `rapports` de `src/content/equipe.ts`, dont chaque entrée
+    portait un CHEMIN (`/documents/rapport-activite-2025.pdf`) et dont les
+    années étaient CALCULÉES (`getFullYear() - 1` et `- 2`). La disponibilité se
+    testait avec `resolveMedia()`, c'est-à-dire une lecture du disque : le
+    dossier `public/documents/` n'ayant jamais existé, les deux lignes
+    s'affichaient en permanence avec la pastille « Bientôt disponible ».
+
+    Après : `annual_reports`, et la vérification porte sur l'existence du média
+    EN BASE — c'est mot pour mot ce que demande le §8I.
+
+    ⚠️  Le comportement visible est le MÊME, et c'est le critère de recette du
+    §8x. Ce qui change est ailleurs : les années ne bougeront plus toutes
+    seules au 1er janvier, et déposer un PDF se fait depuis le dashboard.
+  */
+  const rapports = await getRapportsAnnuels();
+
+  /*
+    Les PDF, résolus en une seule requête.
+
+    ⚠️  `resoudreMedias` accepte les `null` et les écarte : c'est le cas
+    COURANT ici, contrairement à `/galerie` où la référence est obligatoire.
+    Avec zéro identifiant, elle ne fait aucune requête.
+  */
+  const documents = await resoudreMedias(
+    rapports.map((rapport) => rapport.documentMediaId),
+  );
+
+  /*
+    Un rapport n'est proposé au téléchargement que si son PDF existe RÉELLEMENT.
+
+    ⚠️  Le test porte sur le média RÉSOLU, pas sur `documentMediaId !== null` :
+    une référence qui ne rend rien — média supprimé hors dashboard, lecture
+    partielle — produirait sinon un bouton « Télécharger » sans fichier
+    derrière, c'est-à-dire le lien mort que l'invariant nº 2 interdit.
+
+    ⚠️  Et un rapport dont le PDF ne se résout pas reste AFFICHÉ, avec sa
+    mention « En cours de préparation ». C'est l'inverse de ce que fait
+    `/galerie` (écart nº 148, où l'élément est retiré), et la différence est
+    réelle : dans une grille de photos, une case vide n'a aucun sens ; ici, la
+    ligne porte un TITRE et une ANNÉE qui restent une information vraie et
+    utile. La règle du Lot 8H n'était pas générale, elle était propre aux
+    mosaïques.
+  */
+  const rapportsAffiches = rapports.map((rapport) => {
+    const media = rapport.documentMediaId
+      ? documents.get(rapport.documentMediaId)
+      : undefined;
+
+    return {
+      id: rapport.id,
+      year: rapport.year,
+      title: rapport.title,
+      /** L'URL de téléchargement, ou `null` — jamais une chaîne vide. */
+      href: media ? urlTelechargementMedia(media) : null,
+    };
+  });
 
   /*
     Les chiffres clés viennent de la base au Lot 8G.
@@ -184,66 +249,114 @@ export default async function ImpactPage() {
       </section>
 
       {/* --- Rapports --- */}
-      <section className="py-14 lg:py-20">
-        <Container size="default">
-          <Reveal>
-            <SectionHeading
-              badge="Documents"
-              title="Rapports d'activité"
-              subtitle="L'ancien site promettait un rapport envoyé sur demande sans rien publier. Les rapports validés sont désormais téléchargeables directement ici."
-            />
-          </Reveal>
+      {/*
+        ⚠️  SECTION CONDITIONNELLE depuis le Lot 8I, et l'ancre `#documents` est
+        nouvelle (destination des liens « Voir sur le site » de
+        `/dashboard/documents/[id]`).
 
-          <ul className="mt-8 flex flex-col gap-3">
-            {rapportsDisponibles.map((rapport, index) => (
-              <Reveal as="li" key={rapport.year} delay={index * 0.06}>
-                <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                      <FileText className="size-5" aria-hidden="true" />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="font-heading text-base font-semibold text-foreground">
-                        {rapport.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {rapport.available
-                          ? "Format PDF"
-                          : "En cours de préparation"}
-                      </p>
+        La condition suit la règle établie depuis le Lot 8B, et elle compte
+        particulièrement ici : le sous-titre AFFIRME que « les rapports validés
+        sont désormais téléchargeables directement ici ». Rendu au-dessus d'une
+        liste vide, il serait faux — et faux sur la page qui promet la
+        transparence, ce qui est le pire endroit du site pour l'être.
+
+        ⚠️  LE PARAGRAPHE DE CONTACT DISPARAÎT AVEC LA SECTION, et c'est
+        assumé : il répond à « vous voulez le détail d'un don ? », question que
+        posent les rapports eux-mêmes. La même adresse reste atteignable à deux
+        endroits de cette page — l'engagement « Un rapport sur demande », juste
+        au-dessus, et le pied de page. Rien n'est perdu, et une phrase de
+        contact orpheline sous un titre sans contenu aurait été le troisième
+        état, celui que personne n'a voulu.
+
+        La clé de liste est l'IDENTIFIANT, pas l'année (écart nº 114) : deux
+        rapports de même année sont interdits par la base, mais une clé de liste
+        ne doit pas dépendre d'une contrainte qui pourrait être contournée.
+      */}
+      {rapportsAffiches.length > 0 ? (
+        <section id="documents" className="py-14 lg:py-20">
+          <Container size="default">
+            <Reveal>
+              <SectionHeading
+                badge="Documents"
+                title="Rapports d'activité"
+                subtitle="L'ancien site promettait un rapport envoyé sur demande sans rien publier. Les rapports validés sont désormais téléchargeables directement ici."
+              />
+            </Reveal>
+
+            <ul className="mt-8 flex flex-col gap-3">
+              {rapportsAffiches.map((rapport, index) => (
+                <Reveal as="li" key={rapport.id} delay={index * 0.06}>
+                  <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                        <FileText className="size-5" aria-hidden="true" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-heading text-base font-semibold text-foreground">
+                          {rapport.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {rapport.href
+                            ? MENTION_AVEC_DOCUMENT
+                            : MENTION_SANS_DOCUMENT}
+                        </p>
+                      </div>
                     </div>
+
+                    {rapport.href ? (
+                      /*
+                        ⚠️  `min-h-11` s'ajoute à `size="sm"` : un bouton `sm`
+                        fait 36 px, sous les 44 px de la règle 4 du §12. C'est
+                        le correctif du Lot 8H sur les filtres de `/galerie`
+                        (écart nº 147), appliqué à la seule commande de cette
+                        section — la règle ne connaît pas d'exception pour un
+                        bouton « petit par choix esthétique ».
+
+                        ⚠️  L'attribut `download` est CONSERVÉ bien qu'il soit
+                        inopérant sur une autre origine : il ne coûte rien et
+                        redeviendra exact si les fichiers passent un jour par
+                        notre domaine. Ce qui fait réellement le travail est le
+                        `?download=` de l'URL — voir `urlTelechargementMedia`.
+                      */
+                      <Button
+                        asChild
+                        variant="outline"
+                        size="sm"
+                        className="min-h-11"
+                      >
+                        <a href={rapport.href} download>
+                          <Download className="size-4" aria-hidden="true" />
+                          Télécharger
+                          <span className="sr-only">
+                            {" "}
+                            le {rapport.title}, au format PDF
+                          </span>
+                        </a>
+                      </Button>
+                    ) : (
+                      <span className="rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground">
+                        {PASTILLE_SANS_DOCUMENT}
+                      </span>
+                    )}
                   </div>
+                </Reveal>
+              ))}
+            </ul>
 
-                  {rapport.available ? (
-                    <Button asChild variant="outline" size="sm">
-                      <a href={rapport.file} download>
-                        <Download className="size-4" aria-hidden="true" />
-                        Télécharger
-                      </a>
-                    </Button>
-                  ) : (
-                    <span className="rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground">
-                      Bientôt disponible
-                    </span>
-                  )}
-                </div>
-              </Reveal>
-            ))}
-          </ul>
-
-          <Reveal delay={0.1}>
-            <p className="mt-6 text-sm text-muted-foreground">
-              Vous souhaitez le détail de l&apos;utilisation d&apos;un don ?{" "}
-              <a
-                href={`mailto:${contact.email}`}
-                className="font-medium text-primary underline-offset-4 hover:underline"
-              >
-                {contact.email}
-              </a>
-            </p>
-          </Reveal>
-        </Container>
-      </section>
+            <Reveal delay={0.1}>
+              <p className="mt-6 text-sm text-muted-foreground">
+                Vous souhaitez le détail de l&apos;utilisation d&apos;un don ?{" "}
+                <a
+                  href={`mailto:${contact.email}`}
+                  className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  {contact.email}
+                </a>
+              </p>
+            </Reveal>
+          </Container>
+        </section>
+      ) : null}
 
       {/* --- Zones d'intervention --- */}
       <section className="border-t border-border bg-card py-14 lg:py-20">

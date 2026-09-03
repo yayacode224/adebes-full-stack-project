@@ -49,7 +49,7 @@ mémoire sur leur contenu.
 
 ---
 
-## État au terme du Lot 8H
+## État au terme du Lot 8I — **LA SÉRIE 8 EST CLOSE**
 
 ### Lots livrés et recettés
 
@@ -71,6 +71,7 @@ mémoire sur leur contenu.
 | 8F | Questions fréquentes de bout en bout : **premier lot dont la bascule touche des données STRUCTURÉES** (JSON-LD `FAQPage`), `topic` qui décide de la page, `bullets[]` facultatives, 5 actions, 3 écrans, bascule de **trois** pages publiques | ✅ 118 tests purs + 59 sur base réelle + 74 HTTP + 57 parcours navigateur + 68 mesures responsive = **376, 0 échec** |
 | 8G | Chiffres clés de bout en bout : **l'invariant nº 1 rendu SAISISSABLE** (`value` nullable, « — » jamais `0`), `key` dérivée et immuable, `to_confirm` interne, 5 actions, 3 écrans, bascule de **deux** pages dont `/impact` qui était **entièrement statique** | ✅ 265 tests purs + 121 sur base réelle + 113 HTTP + 107 parcours navigateur + 134 mesures responsive = **740, 0 échec** |
 | 8H | Galerie de bout en bout : **premier lot dont la source de vérité était un DOSSIER**, migration réelle des 4 photos vers Storage + `media_assets` + `gallery_items`, catégories gérables (teinte comprise), 5 + 4 actions, 3 écrans, bascule de `/galerie` **entièrement statique**, et **3 correctifs hors périmètre dont un défaut réel de téléversement** | ✅ 124 tests purs + 74 sur base réelle + 80 HTTP + 101 parcours navigateur + 110 mesures responsive = **489, 0 échec** |
+| 8I | Documents de bout en bout — **DERNIER LOT DE LA SÉRIE 8** : `document_media_id` NULLABLE donc **aucune garde de publication**, `year` unique vérifiée dans le domaine, avertissement d'ordre propre à cette collection, 5 actions, 3 écrans, bascule de la section Documents de `/impact`, **premier usage réel de `<MediaPicker accept="document">`**, et **correction d'un défaut du SEED** (les 2 rapports étaient en `draft`) | ✅ 114 tests purs + 74 sur base réelle + 59 HTTP + 96 parcours navigateur + 132 mesures responsive = **475, 0 échec** |
 
 ### Environnement (déjà configuré, ne pas refaire)
 
@@ -86,9 +87,21 @@ mémoire sur leur contenu.
   comptes de test sont créés puis supprimés à chaque recette.
 - Données : 8 programmes publiés, 3 articles, 5 catégories, 4 valeurs, 7 FAQ,
   4 chiffres (`beneficiaires` à `NULL`), 3 témoignages, 3 fiches d'équipe en
-  brouillon, **4 éléments de galerie publiés et 4 catégories de galerie**,
+  brouillon, 4 éléments de galerie publiés et 4 catégories de galerie,
   12 pages, 30 sections squelettes, 12 entrées de navigation, 7 groupes de
-  réglages, 2 rapports annuels en brouillon.
+  réglages, **2 rapports annuels PUBLIÉS, sans PDF, en positions 1 (2025) et
+  2 (2024)**.
+- ⚠️  **LES DEUX RAPPORTS ONT CHANGÉ D'ÉTAT AU LOT 8I : `draft` → `published`.**
+  Ce n'est pas un changement d'avis, c'est la correction d'un défaut du seed —
+  voir l'écart nº 151. `supabase/seed.sql` est corrigé pour les installations
+  neuves, et la base déjà seedée a été alignée par un `UPDATE` borné aux deux
+  années, aux lignes encore en `draft` et sans PDF. Aucun contenu n'a été
+  inventé : seul l'état éditorial a bougé.
+- **Le bucket `documents` est VIDE, et `media_assets` ne contient aucun PDF.**
+  Les 5 médias sont tous des images. La chaîne du document a bien été exercée
+  par la recette (téléversement réel, `Content-Type` servi, `?download=`), mais
+  le fichier de test a été purgé : rien de durable n'a été ajouté. **Le premier
+  vrai PDF sera celui que l'utilisateur déposera.**
 - **`media_assets` contient 5 médias depuis le Lot 8H.** Le premier est celui de
   l'utilisateur, téléversé au Lot 8C depuis `/dashboard/mediatheque`. Les
   **quatre autres sont les photographies de la galerie**, migrées par ce lot :
@@ -99,11 +112,22 @@ mémoire sur leur contenu.
   ajoute des lignes durables à cette table** — et c'était le travail annoncé
   par le seed du Lot 1. Les fichiers d'origine restent dans
   `public/images/galerie/`, mais **plus aucune page ne les lit**.
-- **`audit_logs` : 168 entrées — inchangé PAR LA RECETTE du Lot 8H.** Mesuré à
-  164 au démarrage de la recette comme à sa fin, et **0 entrée `gallery*`** au
-  contrôle final : la suite 4 en a réellement produit 7 par ses mutations, et
-  les a purgées par `actor_id`. Troisième lot consécutif à ne rien laisser
-  derrière lui.
+- **`audit_logs` : 177 entrées, et la recette du Lot 8I n'en a laissé AUCUNE.**
+  Le contrôle décisif n'est pas le compteur global mais celui-ci : **0 entrée
+  créée après le 2026-08-31**, et **0 entrée `annual_report*`**. La suite 4 en a
+  réellement produit par ses mutations, et les a purgées par `actor_id`.
+  Quatrième lot consécutif à ne rien laisser derrière lui.
+  ⚠️  **Le compteur global est mesuré à 171 au démarrage de la session et à 177
+  à sa fin, et cet écart de 6 n'a PAS pu être expliqué.** Les six entrées les
+  plus récentes datent du 31 août — donc d'avant cette session — et appartiennent
+  au compte de l'utilisateur (`auth.login` ×2, `team_member.reorder` ×3,
+  `gallery_category.update`). La mesure d'entrée est donc celle qui ne se
+  raccorde pas, pas celle de sortie. Consigné tel quel plutôt qu'expliqué à
+  tort : la question « la recette a-t-elle sali le journal ? » est tranchée par
+  la mesure datée, qui répond non.
+  Rappel du détail antérieur, à purger au Lot 13 : **101 entrées ont
+  `actor_id = null`** (comptes de recette supprimés, `on delete set null`), les
+  76 autres appartiennent au compte de l'utilisateur.
   ⚠️  **Les écarts de ce compteur ne viennent PAS des recettes.** 138 → 164
   entre les Lots 8G et 8H, puis 164 → 168 PENDANT la session du Lot 8H : les
   quatre dernières sont un `auth.login`, un `auth.logout` et deux
@@ -113,12 +137,17 @@ mémoire sur leur contenu.
   Rappel du détail antérieur, à purger au Lot 13 : 16 entrées appartiennent au
   compte de l'utilisateur, 53 sont les `team_member.*` du Lot 8D, 12 les
   `core_value.*` du Lot 8E, 17 les résidus du Lot 7.
-- **`rate_limits` contient 4 lignes**, dont deux portant une **vraie adresse IP**
-  (`connexion:196.117.202.164`, `mot-de-passe-oublie:196.117.202.164`) : ce sont
-  les compteurs de l'utilisateur, **jamais touchés par les recettes**. Les deux
-  autres (`televersement:::ffff:127.0.0.1`, `televersement:::1`) sont des restes
-  de boucle locale d'un banc antérieur. Une recette ne remet à zéro que les clés
-  `connexion:` de la boucle locale, et rien d'autre (découverte nº 38).
+- **`rate_limits` contient 6 lignes**, dont **quatre portant une vraie adresse
+  IP** : `connexion:196.117.202.164`, `mot-de-passe-oublie:196.117.202.164`,
+  et **deux nouvelles depuis le Lot 8H** — `connexion:105.159.175.105` (31 août,
+  09 h 14) et `connexion:196.117.108.244` (31 août, 18 h 12). Ce sont les
+  connexions de l'utilisateur depuis d'autres réseaux, horodatées avant cette
+  session et **jamais touchées par les recettes** : le banc s'authentifie
+  directement auprès de Supabase, il ne passe pas par `/connexion`. Les deux
+  dernières lignes (`televersement:::ffff:127.0.0.1`, `televersement:::1`) sont
+  des restes de boucle locale d'un banc antérieur. Une recette ne remet à zéro
+  que les clés `connexion:` de la boucle locale, et rien d'autre
+  (découverte nº 38).
 
 ### Méthode de recette qui a fait ses preuves
 
@@ -253,6 +282,28 @@ Aucun harnais de test n'est installé (proposé, non retenu). Procédé employé
 - **Le banc n'est pas linté** : `npx eslint .` signale ses `require()` tant
   qu'il est présent. Vérifier `npx eslint src` pendant le lot, et `npx eslint .`
   une fois le banc supprimé.
+- **Un clic de recette se fait par `Input.dispatchMouseEvent`, pas par
+  `element.click()`** (découverte nº 58) : le `DropdownMenu` de Radix s'ouvre sur
+  `pointerdown` et ignore un `click()` synthétique, là où le `Select` y réagit.
+  Deux composants de la même bibliothèque, deux comportements.
+- **Le harnais REND son code de sortie, il ne l'exécute pas** (découverte
+  nº 59) : `process.exit()` appelé dans un `try` saute le `finally`, donc la
+  purge. Une suite en échec laisse alors ses comptes derrière elle, proprement
+  et sans bruit.
+- **Rendre les POSITIONS, pas seulement les lignes** (découverte nº 60) :
+  relever l'ordre à l'entrée, `reorder_rows` à la sortie. Une suite qui exerce
+  « Monter » réordonne la table ENTIÈRE, donc les données de l'utilisateur.
+- **Retirer les commentaires avant de sonder du code source** (découverte
+  nº 62) : les fichiers de ce projet citent l'anti-patron qu'ils évitent, et une
+  recherche brute le trouve.
+- **Borner une mesure de HTML à sa section** (découverte nº 63) : la charge
+  utile RSC répète en bas de page chaque texte rendu ; un `match(...).length`
+  non borné compte double.
+- **⚠️ ENCHAÎNER LES SUITES AVANT DE CONCLURE.** Trois défauts du banc du
+  Lot 8I (nº 59, nº 60, nº 61) étaient invisibles suite par suite et n'ont
+  paru qu'à l'exécution consécutive sur l'arbre final. La règle 1 dit « on
+  exécute et on montre la sortie » ; il faut lire : **on exécute tout, à la
+  suite, une dernière fois.**
 
 ---
 
@@ -456,6 +507,29 @@ Chacun est documenté dans le code concerné.
 | 148 | **Un élément dont la photo ne se résout pas n'est PAS rendu** | C'est le SEUL endroit du site où l'on RETIRE un contenu plutôt que de le remplacer par un `MediaPlaceholder`, et il faut dire pourquoi : dans une grille de photos, une vignette de repli n'est pas un contenu dégradé, c'est une case vide au milieu d'une mosaïque — et la visionneuse l'ouvrirait en grand sur rien. Ailleurs (carte de programme, portrait), le repli accompagne un TEXTE qui reste porteur. L'état est très improbable (`media_id` `not null`, `on delete restrict`) et il est SIGNALÉ dans le dashboard, où quelqu'un peut agir. |
 | 149 | **« Voir sur le site » existe ici SANS RÉSERVE** | Après quatre lots de nuances — pas de lien au 8C (écart nº 86), lien conditionné au 8D (nº 98), lien conditionné à une lecture réelle au 8F — celui-ci est le cas simple : **`/galerie` affiche TOUTES les photos publiées, sans coupe**. Si l'élément est en ligne, il y est, et rien n'a besoin d'être lu pour le savoir. Le lien n'est rendu que sur un élément publié : sur un brouillon il promettrait une page où la photo ne figure pas. Corollaire, écrit dans `gallery.actions.ts` : **le réordonnancement ne peut pas faire disparaître un contenu**, contrairement à l'écart nº 120 du Lot 8F. |
 | 150 | **L'aperçu du formulaire est la VRAIE `<GalleryGrid>`, avec une seule photo** | Même doctrine qu'aux Lots 8E et 8F : un aperçu réécrit à la main est un aperçu qui ment tôt ou tard. Ce qu'il montre et que rien d'autre ne montre : **quel bouton de filtre atteint cette photo**. Choisir « Sans catégorie » fait disparaître le second bouton — la conséquence de l'écart nº 137 devient visible au lieu d'être expliquée, au moment exact où la décision se prend. Il montre aussi le texte alternatif hérité de la médiathèque, en ouvrant la photo, avec un lien vers `/dashboard/mediatheque` pour le corriger — **et non vers une fiche de média, route qui n'existe pas** (la médiathèque ouvre ses fiches en modale) : promettre `/dashboard/mediatheque/<id>` aurait produit un lien mort. |
+
+### Écarts du Lot 8I
+
+| # | Écart | Raison |
+|---|---|---|
+| 151 | **⚠️ CORRECTION D'UN DÉFAUT DU SEED : LES DEUX RAPPORTS PASSENT EN `published`** | Le seed du Lot 1 les écrivait en `'draft'`, au motif que « le lien reste masqué tant que le PDF est absent ». C'est vrai du LIEN, faux de la LIGNE : `/impact` affichait les deux rapports, avec « En cours de préparation » et « Bientôt disponible ». Ce sont **deux contenus visibles, pas deux absences**. Tant que rien ne lisait la table, l'écart ne se voyait pas ; à la bascule, il devenait une régression complète — la lecture publique ne rend que les rapports publiés, et la section entière aurait disparu de la page qui promet la transparence, alors que le §8x exige un rendu « IDENTIQUE à l'actuel pour les données migrées ». Le §8I confirme d'ailleurs l'intention (« une garde qui empêche de PUBLIER les deux seuls rapports existants »). `seed.sql` est corrigé pour les installations neuves, et la base déjà seedée alignée par un `UPDATE` **borné aux deux années, aux lignes encore en `draft` et sans PDF**, donc idempotent et sans effet sur un rapport que quelqu'un aurait volontairement dépublié. Aucun contenu inventé : ni titre, ni année, ni fichier. |
+| 152 | **AUCUNE GARDE DE PUBLICATION — et c'est LA décision du lot** | Ce lot est le jumeau visuel du 8H, et c'est exactement le piège. `gallery_items.media_id` est `not null` : un élément sans photo n'existe pas, d'où la garde du Lot 8H (écart nº 136). **`annual_reports.document_media_id` est NULLABLE**, et un rapport sans PDF est l'état NORMAL — c'est même celui des deux seules lignes existantes. Recopier la garde aurait produit une règle interdisant de publier les deux seuls rapports du site. Le fichier `set-annual-report-status.ts` écrit ce raisonnement au long, avec le tableau comparatif des quatre lots à garde, pour qu'on ne la « rétablisse » pas plus tard en croyant réparer un oubli. Ce qui est fait à la place : l'écran le DIT, à quatre endroits (bandeau de la liste, phrase d'état de la fiche, message de succès de la publication, aperçu du formulaire). **Vérifié dans les deux sens** : la sonde B01 de la suite 1 exige que `documentMediaId` n'apparaisse NULLE PART dans le cas d'usage, et la suite 2 (E13) publie réellement un rapport sans PDF via un client administrateur. |
+| 153 | **`year` EST VÉRIFIÉE DANS LE DOMAINE, comme un `slug`** | `findByYear` est la seule méthode de port que les huit autres collections n'ont pas. `year integer not null unique` : la base refuserait le doublon, mais `mapPostgrestError` traduit le 23505 par « **Cette adresse** est déjà utilisée » avec un `fieldErrors.slug` — message doublement faux ici (le mot « adresse » ne veut rien dire pour un rapport, et le champ `slug` n'existe pas dans ce formulaire, de sorte que l'erreur ne se rattacherait à AUCUN champ à l'écran). Le message du cas d'usage nomme l'année ET le titre du rapport existant. ⚠️ Rendre `errors.ts` générique demanderait de lire le nom de la contrainte violée : **dette consignée pour le Lot 16**. |
+| 154 | **L'ANNÉE EST MODIFIABLE, contrairement à `stats.key` (écart nº 124)** | `key` est un identifiant technique dérivé et immuable ; `year` est une donnée saisie, affichée, et corrigible — une faute de frappe sur un millésime est une faute comme une autre. Rien ne pointe dessus : `year` n'est référencée par aucune table et ne compose aucune URL. L'unicité est revérifiée à la modification, **en excluant la ligne elle-même** : sans ce `!==`, réenregistrer un rapport sans toucher à son année le déclarerait en conflit avec lui-même (défaut classique, vérifié par D15). |
+| 155 | **BORNES D'ANNÉE FIXES (2000–2100), jamais calculées** | `new Date().getFullYear() + 1` aurait été tentant et faux deux fois : la valeur serait figée au démarrage du serveur (un processus qui tourne au passage de l'année validerait selon l'année précédente), et l'écart nº 23 a déjà tranché cette question — une valeur qui change toute seule au 1er janvier est un défaut. Ce que ces bornes protègent réellement, c'est la faute de frappe : `20255` est refusé par un message français au lieu de s'afficher sur la page qui promet la transparence. Elles n'expriment aucune politique éditoriale — un rapport daté de l'année prochaine reste enregistrable. |
+| 156 | **LE TITRE N'EST PAS DÉRIVÉ DE L'ANNÉE** | `src/content/equipe.ts` le composait (`Rapport d'activité ${year}`), et `stats.key` est bien dérivée de son libellé (écart nº 124). La différence : `key` est un identifiant technique que personne ne lit, `title` est **le texte affiché sur la page publique**. Dériver un texte affiché, c'est écrire du contenu à la place de l'association — la faute que l'invariant nº 1 interdit sur les chiffres et le Lot 8D sur les noms. Le jour où un rapport s'appelle « Rapport moral et financier 2026 », la dérivation aurait été un obstacle. À la place : un `placeholder` qui MONTRE la forme attendue, n'est pas envoyé, et laisse le champ obligatoire. |
+| 157 | **UN AVERTISSEMENT D'ORDRE, propre à cette collection** | `annual_reports` est la SEULE table du projet qui porte à la fois une `position` réordonnable et une donnée suggérant un ordre naturel (`year`). Les deux peuvent se contredire, et rien en base ne l'empêche : un rapport créé aujourd'hui se place en fin de liste (`count() + 1`, comme les huit autres collections), donc un rapport 2026 se retrouverait APRÈS 2024. Deux voies écartées : **trier d'office par année et retirer le réordonnancement** — la matrice du §9 déclare `document:reorder` et la migration 0012 inscrit la table dans sa liste blanche, supprimer une capacité que deux documents d'autorité prévoient demanderait mieux qu'une préférence ; **réordonner tout seul** — cela écrirait des positions que personne n'a demandées. La règle vit dans le domaine (`ordreSuitLesAnnees`), elle est évaluée sur les rapports PUBLIÉS seulement (un brouillon mal rangé ne dérange personne), et l'écran la DIT. Informer plutôt qu'interdire. |
+| 158 | **UN RAPPORT DONT LE PDF NE SE RÉSOUT PAS RESTE AFFICHÉ** | C'est l'INVERSE de l'écart nº 148 (Lot 8H), où un élément de galerie dont la photo manque est RETIRÉ de la grille. La différence est réelle et vaut d'être dite : dans une mosaïque, une case vide n'est pas un contenu dégradé, c'est un trou, et la visionneuse l'ouvrirait en grand sur rien. Ici, la ligne porte un TITRE et une ANNÉE qui restent une information vraie et utile ; seul le bouton de téléchargement disparaît, et la ligne repasse en « En cours de préparation » — l'état qu'elle aurait de toute façon sans PDF. **La règle du Lot 8H n'était pas générale, elle était propre aux mosaïques.** L'écran du dashboard, lui, distingue les TROIS états (`absent` / `present` / `introuvable`) : confondre une panne avec un choix éditorial est exactement ce que l'invariant nº 1 interdit. |
+| 159 | **LE TEST DE TÉLÉCHARGEMENT PORTE SUR LE MÉDIA RÉSOLU, pas sur `documentMediaId`** | Une référence qui ne rend rien produirait sinon un bouton « Télécharger » sans fichier derrière — le lien mort que l'invariant nº 2 interdit. La page compose donc les deux lectures (rapports + médias) avant de décider. L'aperçu du formulaire fait la MÊME vérification, pour ne pas promettre autre chose que la page publique. |
+| 160 | **`urlTelechargementMedia()` AJOUTÉ à `lib/media-url.ts` — `?download=<nom>`** | L'attribut HTML `download` est **ignoré par le navigateur dès que la cible est d'une autre origine** — règle du HTML, pas une particularité de Supabase. Avant la bascule, le chemin était `/documents/…pdf`, servi par Next depuis `/public`, donc de MÊME origine : `download` fonctionnait. Nos fichiers viennent maintenant de `<projet>.supabase.co` : le PDF s'ouvrirait dans un onglet sous un bouton qui promet « Télécharger ». Le paramètre `?download=<nom>` fait répondre le CDN avec `Content-Disposition: attachment`. **Vérifié par un `HEAD` réel sur l'URL publique** (suite 2, D10–D13), pas supposé — c'était la seule API du lot dont le comportement n'était pas certain. Le nom proposé est celui d'ORIGINE, encodé : personne ne veut retrouver `a3f9c1e2-….pdf` dans ses téléchargements. L'attribut `download` est conservé sur le lien : il ne coûte rien et redeviendra exact si les fichiers passent un jour par notre domaine. |
+| 161 | **PREMIER USAGE RÉEL DE `<MediaPicker accept="document">`** | Le composant sait le faire depuis le Lot 7 (`bucketPourAccept` → `documents`, migration 0011, 20 Mo, `application/pdf` seul), mais **aucun écran ne l'avait jamais exercé** : les quatre champs `media` livrés jusqu'ici sont tous en `accept: "image"`. C'est la leçon nº 1 du Lot 8H appliquée à un composant plutôt qu'à une table. La recette a exercé la chaîne ENTIÈRE contre la base réelle — téléversement d'un vrai PDF, bucket déduit du type lu dans les octets, nom régénéré en `.pdf`, `width`/`height` à `null`, `Content-Type` servi par le CDN, usage BLOQUANT dans la médiathèque, refus 23503 à la suppression du média — **puis tout purgé**. Aucun défaut trouvé : le chemin du document était correct, il n'était simplement jamais passé. |
+| 162 | **DEUX ÉTIQUETTES DE CACHE, DONT UNE PARTAGÉE — et c'est une première** | `cms:documents` est nouvelle ; **`cms:page:impact` ne l'est pas** — elle a été créée au Lot 8G pour les chiffres clés, et `stats.actions.ts` l'invalide déjà. C'est la première fois de la série que deux collections partagent une étiquette de page, et c'est exact : `/impact` lit désormais les deux. Corollaire pour le Lot 15 : **`/impact` n'a qu'un seul `force-dynamic` pour DEUX lectures** — ne pas le retirer en ne pensant qu'à l'une. C'est aussi le premier lot de la série dont la bascule n'a RIEN eu à changer au mode de rendu de sa page. |
+| 163 | **LA SECTION `#documents` EST CONDITIONNELLE, ET LE PARAGRAPHE DE CONTACT DISPARAÎT AVEC ELLE** | Règle établie depuis le Lot 8B, et elle compte particulièrement ici : le sous-titre AFFIRME que « les rapports validés sont désormais téléchargeables directement ici ». Rendu au-dessus d'une liste vide, il serait faux — et faux sur la page qui promet la transparence. Le paragraphe « vous souhaitez le détail de l'utilisation d'un don ? » part avec la section, et c'est assumé : il répond à une question que posent les rapports eux-mêmes, et la même adresse reste atteignable **deux fois sur cette page** — l'engagement « Un rapport sur demande », juste au-dessus, et le pied de page. Une phrase de contact orpheline sous un titre sans contenu aurait été le troisième état, celui que personne n'a voulu. L'ancre `#documents` est nouvelle (destination des liens « Voir sur le site »), jumelle de `#chiffres` posée au Lot 8G. |
+| 164 | **« Voir sur le site » SANS RÉSERVE, comme au Lot 8H** | Cinquième et dernier arbitrage de cette question dans la série : `/impact` affiche TOUS les rapports publiés, sans coupe. Si le rapport est en ligne, il y est, et rien n'a besoin d'être lu pour le savoir. Le lien n'est rendu que sur un rapport publié — sur un brouillon il promettrait une section où il ne figure pas. Corollaire écrit dans `annual-reports.actions.ts` : **le réordonnancement ne peut pas faire disparaître un contenu**, contrairement à l'écart nº 120 du Lot 8F. |
+| 165 | **L'APERÇU EST REDESSINÉ — seul de la série** | Les Lots 8E, 8F et 8H rendaient le VRAI composant public (`<ValueCard>`, `<FAQAccordion>`, `<GalleryGrid>`), et c'était la bonne décision. ⚠️ **Ici, il n'y a AUCUN composant à réutiliser** : la section Documents de `/impact` n'a jamais été extraite, ses lignes sont écrites en clair dans la page. L'extraire aurait été le geste juste, et il est hors périmètre — une page serveur ne peut pas recevoir un composant qui lit un formulaire. Ce qui borne le risque : **les trois libellés viennent du DOMAINE** (`MENTION_AVEC_DOCUMENT`, `MENTION_SANS_DOCUMENT`, `PASTILLE_SANS_DOCUMENT`), pas de chaînes recopiées — si la page publique change de vocabulaire, l'aperçu change avec elle. Ce qui reste dupliqué, ce sont les classes de mise en forme. **À reprendre au Lot 9**, qui extraira des blocs de rendu. |
+| 166 | **LA RECHERCHE PORTE SUR UNE COLONNE `integer`, et les deux niveaux ne mentent pas l'un sur l'autre** | `ilike` sur une colonne numérique lève une erreur PostgREST (« operator does not exist: integer ~~* unknown »). La clause `year` n'est donc ajoutée que si la saisie est un ENTIER, et elle emploie `eq` : chercher « 2025 » trouve le rapport 2025, chercher « 202 » ne trouve rien **côté SQL**. L'écran, lui, complète : `<DataTable>` filtre EN MÉMOIRE (écart nº 51) sur des lignes déjà chargées, où l'année est une chaîne — la saisie partielle y fonctionne. Le dépôt fait ce que SQL sait faire, l'écran ce que le navigateur sait faire, et **le dépôt en mémoire imite exactement le dépôt réel** (écarts nº 109, 132, 141). Les deux comportements sont mesurés séparément (suite 2 C11–C13, suite 4 B02–B03). |
+| 167 | **AUCUNE COLLECTION SATELLITE — le patron « une collection dans la collection » ne s'applique PAS** | Après deux instances (catégories d'articles au 8B, de galerie au 8H), la tentation était de plaquer une troisième. `annual_reports` est une table seule : il n'y a pas de « catégories de documents », et en inventer une aurait créé une liste de libellés que rien n'affiche. Un seul port, un seul dépôt, une seule fabrique de dépendances — c'est le lot le plus simple de la série, et c'est normal. |
+| 168 | **`document:*` EXISTAIT DÉJÀ dans la matrice — contrairement à `value` au Lot 8E** | Les six permissions sont déclarées depuis le Lot 2, et l'entrée de navigation « Documents » depuis le Lot 5. Aucun ajout au §9 n'a été nécessaire, et c'est la première collection de la série dans ce cas. La ressource s'appelle `document`, pas `annual_report` : c'est plus large que la table, et le §5.2 nomme l'écran « Documents » — le jour où un autre type de document arrive, la permission n'aura pas à être renommée. |
 
 ---
 
@@ -1110,6 +1184,94 @@ jetable — `npm cache clean --force` l'a ramené à zéro et libéré **8,3 Go*
 seul prix d'un retéléchargement au prochain `npm install`. À vérifier en premier
 désormais, avant `.next/`. (`%LOCALAPPDATA%\Temp` pesait 4,0 Go et le profil
 Chrome 4,6 Go : **laissés intacts**, ils n'appartiennent pas au projet.)
+
+**58. DEUX COMPOSANTS RADIX NE SE PILOTENT PAS DE LA MÊME FAÇON.**
+`DropdownMenuTrigger` s'ouvre sur **`pointerdown`** : un `element.click()`
+synthétique, qui ne produit qu'un événement `click`, l'ignore purement et
+simplement. `SelectTrigger`, lui, réagit bien à `click()`. La même bibliothèque,
+deux comportements, et rien ne le signale.
+
+Le symptôme est trompeur : le menu ne s'ouvre pas, la sonde compte zéro entrée
+et conclut « ce menu est vide » — c'est-à-dire qu'elle accuse un composant
+parfaitement fonctionnel (découverte nº 44).
+
+**La parade est générale** : ne plus piloter un clic par `element.click()`, mais
+par `Input.dispatchMouseEvent` en CDP (`mousePressed` puis `mouseReleased`, aux
+coordonnées du centre de l'élément). C'est ce que fait un vrai navigateur, donc
+la séquence complète d'événements pointeur. À employer PAR DÉFAUT dans le module
+CDP des prochains lots.
+
+**59. `process.exit()` DANS UN `try` SAUTE LE `finally`.**
+Défaut réel du banc, trouvé à la vérification finale. La fonction `resume()`
+appelait `process.exit()` — et elle est invoquée DANS le bloc `try` de chaque
+suite. Une suite en échec terminait donc le processus **sans exécuter sa purge**,
+et laissait ses comptes de test derrière elle : trois profils en base au lieu
+d'un.
+
+C'est la découverte nº 40 par une porte que personne ne regarde — le script ne
+« plante » pas, il sort proprement, avec un code d'erreur juste et une base
+sale. Un harnais de recette doit RENDRE son code de sortie ; c'est l'appelant
+qui sort, après la purge.
+
+⚠️  Et c'est le contrôle « il ne doit rester que le super administrateur » qui
+l'a rattrapé. Ce contrôle n'est pas de la cérémonie.
+
+**60. PURGER LES LIGNES NE SUFFIT PAS : IL FAUT RENDRE LES POSITIONS.**
+Une suite insérait des lignes de recette (dont une sans `position`, donc à 0) puis
+les supprimait. La suppression ne renumérote rien : les deux rapports réels se
+retrouvaient en positions **2 et 3** au lieu de 1 et 2 — dans le bon ORDRE, ce
+que le contrôle final vérifiait, mais pas aux bonnes VALEURS.
+
+Prise isolément, la suite passait. Enchaînée, elle empoisonnait la suivante : la
+suite navigateur crée son rapport à `count() + 1`, soit 3 — **la même position
+qu'une ligne réelle**. Deux lignes à égalité, plus aucun critère pour les
+départager, et l'ordre lu devient non déterministe. Résultat : un avertissement
+d'ordre qui apparaît ou non selon l'exécution, sur trois suites différentes.
+
+Une recette rend l'état NUMÉRIQUE tel qu'elle l'a trouvé : relever l'ordre à
+l'entrée, `reorder_rows` à la sortie. Et vérifier les positions, pas seulement
+leur ordre relatif.
+
+⚠️  Corollaire pour toute collection réordonnable : **une suite qui exerce
+« Monter » exerce `reorder_rows` sur la table ENTIÈRE**, donc sur les données de
+l'utilisateur. Ici, deux « Monter » sur un rapport de recette ont laissé le site
+public avec ses deux rapports dans l'ordre inverse.
+
+**61. UNE SONDE SUR UN PRÉFIXE D'URL MATCHE LA PAGE D'OÙ L'ON PART.**
+Après avoir soumis le formulaire de création, l'attente était
+`location.pathname.indexOf("/dashboard/documents/") === 0 && length > …`.
+`/dashboard/documents/nouveau` la satisfait **aussi**. La sonde rendait la main
+immédiatement, sans que rien ne se soit produit, et la relecture en base qui
+suivait échouait — en désignant la création, alors que le défaut était l'attente.
+
+Attendre une redirection, c'est attendre la forme EXACTE de la destination : ici,
+un identifiant UUID en dernier segment. Jumeau de la découverte nº 47 (attendre
+la mutation, pas la capture) et de la nº 56 (une assertion vraie par
+construction n'assertionne rien).
+
+**62. UNE SONDE DE TEXTE SOURCE TROUVE L'ANTI-PATRON DANS LES COMMENTAIRES.**
+Trois sondes de la suite 1 ont accusé du code correct dès leur première
+exécution, pour une seule raison : **les fichiers de ce projet CITENT
+l'anti-patron qu'ils évitent**, en commentaire, précisément pour qu'on ne le
+réintroduise pas. Le mapper contient la phrase « un `if (input.documentMediaId)`
+aurait rendu le retrait impossible » ; le cas d'usage contient « et non
+`input.status ?? 'draft'` ».
+
+Une recherche de texte brut y voit le défaut qu'elle cherche. Toute sonde qui
+LIT DU CODE doit d'abord retirer les commentaires — et il aurait été bien plus
+rapide, et bien pire, de « nettoyer » les commentaires pour faire passer la
+sonde.
+
+**63. LA CHARGE UTILE RSC COMPTE DOUBLE.**
+Next sérialise l'arbre rendu dans des `<script>` en bas de page : **chaque texte
+affiché se retrouve une seconde fois dans le HTML servi**. Une sonde qui
+comptait les occurrences d'une mention dans `html.slice(indexOf('id="documents"'))`
+— c'est-à-dire jusqu'à la fin du document — rapportait 6 mentions pour 3 lignes
+rendues.
+
+C'est la découverte nº 42 avec une cause nouvelle, et elle touche toute mesure
+par `match(...).length` sur du HTML de Next. Borner à la section (jusqu'au
+`<section` suivant) suffit.
 
 ---
 
@@ -1895,61 +2057,176 @@ publiés en positions 1-4, 4 catégories, 5 médias, **1 seul profil**, et
 
 ---
 
-## Prochaine étape : Lot 8I — documents
+## Ce qu'a livré le Lot 8I (détail)
 
-Voir la table des lots 8B → 8I du Rapport 2. C'est le **dernier** lot de la
-série 8, et le §8I tient en une ligne : « rapports annuels PDF · année · le lien
-public n'apparaît que si le fichier existe ».
+### Fichiers
 
-`annual_reports` porte un `status` (migration 0005) : c'est le gabarit des Lots
-8A–8D, 8F et 8H qu'il faut reprendre, **et non celui du Lot 8E/8G**. Vérifier
-dans la migration, pas de mémoire.
+| Fichier | Rôle |
+|---|---|
+| `src/core/cms/entities/annual-report.ts` | `AnnualReport` et ses types d'écriture, `ANNEE_MIN`/`ANNEE_MAX`, `aUnDocument()`, `ordreSuitLesAnnees()`, `anneesEnDoublon()`, et **les trois libellés que la page publique affiche** (`MENTION_AVEC_DOCUMENT`, `MENTION_SANS_DOCUMENT`, `PASTILLE_SANS_DOCUMENT`) — descendus ici parce que trois écrans les affichent. L'en-tête écrit AU LONG pourquoi ce lot n'est pas le Lot 8H |
+| `src/core/cms/schemas/annual-report.schema.ts` | 7 schémas. `year` bornée et entière, `title` `.trim()` avant `.min()`, `documentMediaId` **nullable** ; messages français aux trois niveaux dès la première version ; **pas de sentinelle**, contrairement au Lot 8H — `MediaField` porte nativement `null` |
+| `src/core/cms/ports/annual-report.port.ts` | Deux interfaces et un regroupement. **`findByYear`** — la seule méthode que les huit autres collections n'ont pas |
+| `src/core/use-cases/annual-reports/*.ts` | `create` (année unique), `update` (unicité revérifiée hors de soi-même, statut neutralisé), `delete` (renumérotation), `reorder`, `setStatus` (**sans garde, et le fichier dit pourquoi**), `get`, `list` (+ `listPublished`) |
+| `src/core/testing/in-memory-annual-report.repository.ts` | Dépôt en mémoire — **avec la même recherche que le vrai, et sans imposer l'unicité** (c'est le cas d'usage qui la porte) |
+| `src/infrastructure/supabase/mappers/annual-report.mapper.ts` | Aucun repli (les colonnes sont des énumérés ou des `not null`) ; `toAnnualReportUpdate` distingue `undefined` de `null` sur `documentMediaId` **et** sur `year`, où `0` serait falsy |
+| `src/infrastructure/supabase/repositories/annual-report.repository.ts` | Liste blanche de tri, `nullsFirst: false`, `findByYear` en `maybeSingle` (la colonne est `unique`), `countByMedia`, `reorder_rows('annual_reports')`, et **`clauseRecherche()` qui n'ajoute `year` que pour une saisie entière** |
+| `src/server/deps/annual-report.deps.ts` | Un client, un dépôt. **La neuvième et dernière fabrique de la série 8** |
+| `src/server/actions/annual-reports.actions.ts` | 5 actions. Deux étiquettes, dont `cms:page:impact` **déjà posée par le Lot 8G** |
+| `src/server/queries/annual-report.query.ts` | `getRapportsAnnuels()`. L'en-tête compare ligne à ligne ce que faisait le tableau TypeScript et ce qui le remplace |
+| `src/components/dashboard/documents/annual-report-form.tsx` | 3 champs — **premier appelant de `<MediaPicker accept="document">`**. `<ApercuRapport>` montre la bascule entre les deux états, et le nom de fichier que le visiteur téléchargera |
+| `src/components/dashboard/documents/annual-reports-client.tsx` | Liste : 4 colonnes, 2 filtres, recherche sur titre + année + nom de fichier, bandeau à cinq messages (rapports en ligne, sans PDF, ordre en désaccord, années en double, PDF partagé ou introuvable) |
+| `src/components/dashboard/documents/annual-report-editeur.tsx` | Fiche : publier / dépublier / supprimer, lien « Visible sur » vers `#documents`, **quatre phrases d'état** là où le Lot 8H en avait deux |
+| `src/app/(dashboard)/dashboard/documents/{,nouveau/,[id]/}page.tsx` | Les trois écrans. L'entrée de navigation existait depuis le Lot 5 et menait à une 404 — **la dernière des neuf** |
+| `src/app/(site)/impact/page.tsx` | **MODIFIÉ, bascule** : lecture en base, résolution des médias, section conditionnelle, ancre `#documents`, bouton porté à 44 px. `force-dynamic` **inchangé** — il était déjà là pour les chiffres |
+| `src/lib/media-url.ts` | **MODIFIÉ** : `urlTelechargementMedia()` ajouté (écart nº 160) |
+| `src/content/equipe.ts` | En-tête récrit — **plus AUCUN export de ce fichier n'est importé**. Le Lot 16 peut le supprimer entièrement |
+| `supabase/seed.sql` | **MODIFIÉ** : les deux rapports passent en `'published'` (écart nº 151), avec le motif écrit dans le commentaire |
 
-⚠️  **Ce lot ressemble à celui-ci plus qu'à aucun autre, et c'est le piège.**
-`annual_reports.document_media_id` est une référence de média en
-`on delete restrict` — comme `gallery_items.media_id` — mais elle est
-**NULLABLE**. Toute la logique du Lot 8H tient au fait que la sienne ne l'était
-pas : garde de publication, absence de repli, retrait plutôt que placeholder.
-Ici, un rapport SANS PDF est un état normal, et c'est même celui des deux lignes
-seedées. Le §8I l'écrit : « le comportement actuel (lien masqué si le PDF est
-absent) est conservé, la vérification portant désormais sur l'existence du média
-en base ». Recopier le Lot 8H sans voir cette différence produirait une garde
-qui empêche de publier les deux seuls rapports existants.
+### Recette exécutée — 475 vérifications, 0 échec
 
-Ce que le Lot 8H lègue de réutilisable :
+| Suite | Vérifs | Portée |
+|---|---|---|
+| 1 · code pur | 114 | entité et règles d'ordre (16), **invariants cherchés dans le CODE dépourvu de ses commentaires** (15), 7 schémas × 10 charges hostiles sans un seul message anglais (115 messages inspectés), 38 vérifications de cas d'usage dont **la publication sans PDF**, les trois états du PATCH, matrice RBAC comparée terme à terme aux permissions réellement déclarées, et le dépôt en mémoire jusque dans ce qu'il NE FAIT PAS |
+| 2 · infrastructure (base réelle) | 74 | **parité champ à champ avec ce que `src/content/equipe.ts` produisait** (année, titre, absence de PDF, ordre) ; ce que la base autorise vraiment (23505, 23502, 23503, 22P02, **`document_media_id` NULL accepté, publication sans PDF acceptée**) ; dépôt complet, dont la recherche sur colonne `integer` dans les deux sens ; `reorder_rows` et rétablissement ; **la chaîne du DOCUMENT de bout en bout** — PDF réel téléversé, bucket déduit des octets, `Content-Type` servi par le CDN, `?download=` et son `Content-Disposition`, usage bloquant, refus 23503 à la suppression du média ; RLS anonyme, éditeur (**il crée et modifie, il ne publie ni ne supprime**), administrateur (**il publie un rapport SANS PDF**) |
+| 3 · HTTP (`next start`) | 59 | `/impact` alimentée par la base — les deux titres, les deux mentions, les deux pastilles, l'ancre, **et l'ancien chemin `/documents/*.pdf` disparu** ; 11 pages publiques intactes ; sitemap inchangé et **sans adresse nouvelle** ; gardes anonymes ; 3 écrans × 2 rôles ; 404 sur un identifiant inconnu **et sur un identifiant qui n'est pas un UUID** ; titres d'onglet ; commandes de la fiche par rôle |
+| 4 · parcours navigateur (CDP) | 96 | liste + colonnes + bandeau, **recherche par année ENTIÈRE et PARTIELLE**, les options du filtre qui n'apparaissent qu'à l'ouverture, **menu de ligne ouvert × 2 rôles**, refus d'enregistrer à vide et hors bornes (messages français), aperçu qui suit la saisie, création relue EN BASE, **`<MediaPicker>` en mode document**, **publication SANS PDF puis effet sur `/impact`**, avertissement d'ordre qui apparaît, persiste après un « Monter » et **disparaît après le second**, modification par l'éditeur relue en base, suppression nommée, audit produit puis purgé |
+| 5 · responsive / a11y | 132 | 3 écrans × 5 largeurs (débordement, 44 px avec les trois parades de la découverte nº 49, noms accessibles, 16 px sous `md:`), bascule 767/768 px, **section `#documents` × 5 largeurs bornée à son périmètre**, zoom 200 %, contraste AA **clair et sombre** sur 4 périmètres (158 couples composés), relevé hors périmètre affiché et non compté |
 
-- **le gabarit est stable sur huit collections**, en deux variantes : à cycle
-  éditorial (8A–8D, 8F, 8H) et à visibilité binaire (8E, 8G — série close) ;
-- **le patron « une collection dans la collection »** (catégories gérables en
-  modale) a maintenant deux instances, 8B et 8H, et elles ne diffèrent que par
-  une colonne. La troisième, s'il y en a une, n'aura rien à inventer ;
-- **`<MediaPicker>` a désormais un appelant qui l'EXIGE**, et le Lot 8I sera le
-  premier à s'en servir pour un DOCUMENT (`accept: "document"`, bucket
-  `documents`, 20 Mo). ⚠️ Ce chemin-là n'a jamais été exercé par un écran réel :
-  s'attendre à y trouver ce que ce lot a trouvé sur les images ;
-- **la migration d'un fichier de `/public` vers Storage** est écrite et éprouvée
-  (idempotente, dimensions mesurées, texte alternatif repris à l'identique). Les
-  deux rapports annuels n'ont AUCUN PDF sur le disque — vérifié au Lot 1, écart
-  nº 14 — il n'y aura donc rien à migrer, mais la marche à suivre existe si un
-  fichier apparaît ;
-- **le module CDP est à réécrire à chaque lot**, et ses parades sont acquises :
-  dimensionner avant de mesurer (nº 31, 41), attendre une condition (nº 33) et
-  la BONNE (nº 48), saisie relue (nº 37), contexte isolé par rôle (nº 36), casse
-  des en-têtes (nº 39), purge à l'entrée (nº 40), bornage au périmètre
-  (nº 42–43), IIFE async (nº 46), attendre la mutation (nº 47), zone sensible
-  composée (nº 49), 16 px sous `md:` (nº 50), **options de Radix absentes du
-  HTML (nº 52)**, **capture choisie par son contenu (nº 54)**, **thème écrit
-  dans `localStorage` puis rechargé (nº 55)**, **sonde qui mesure zéro (nº 56)**,
-  **libellé préfixe d'un autre (nº 57)** ;
-- **purger le journal d'audit en fin de recette** : trois lots de suite l'ont
-  fait, `audit_logs` n'a pas bougé d'une ligne du fait des recettes ;
-- **vérifier le disque AVANT de commencer** (nº 35) : `npm-cache` d'abord, puis
-  `.next/dev`, puis `.next/cache`. Il restait 4,1 Go au démarrage de ce lot et
-  2,7 Go après les premiers `next build` — suffisant, mais la marge se réduit.
+Les cinq suites ont été rejouées d'affilée sur l'arbre final, toutes à 0 échec et
+code de sortie 0. Banc entièrement retiré ensuite ; base vérifiée : **2 rapports
+publiés en positions 1 et 2, sans PDF**, 5 médias (aucun PDF), 4 éléments de
+galerie, **1 seul profil**, `audit_logs` **sans aucune entrée `annual_report*` ni
+aucune entrée datée d'aujourd'hui**, et le dossier `rapports` du bucket
+`documents` vide.
+
+### Trois points retenus
+
+1. **Le lot qui ressemble le plus au précédent est celui où il faut le moins le
+   recopier.** `document_media_id` est une référence de média en
+   `on delete restrict`, exactement comme `gallery_items.media_id` — à un mot
+   près : elle est NULLABLE. Ce mot renverse la garde de publication, le
+   comportement d'un média non résolu (affiché ici, retiré là), la nécessité
+   d'une sentinelle dans le schéma, et jusqu'au nombre de phrases d'état de la
+   fiche. Le fichier `set-annual-report-status.ts` porte le tableau comparatif
+   des quatre lots à garde, non pas pour expliquer ce qu'il fait, mais pour que
+   personne ne « répare » plus tard une garde qui n'a jamais manqué.
+2. **Un défaut qu'aucune lecture n'atteint n'est pas un défaut — jusqu'à la
+   bascule.** Le seed écrivait les deux rapports en `draft` avec un motif
+   plausible et faux. Personne ne lisait la table : l'erreur était invisible, et
+   elle serait devenue une régression complète de la section Documents au moment
+   exact où la page a commencé à lire la base. C'est le motif du Lot 8 dans sa
+   forme la plus pure — **la bascule ne casse rien, elle rend atteignable ce que
+   le fichier TypeScript rendait impossible** — appliqué cette fois non à un
+   composant ni à une table, mais à une DONNÉE seedée.
+3. **Une recette doit rendre l'état numérique, pas seulement les lignes.** Trois
+   défauts du banc ont été trouvés à la vérification finale, et aucun n'était
+   visible sur une suite prise isolément : `process.exit()` dans un `try` sautait
+   la purge (découverte nº 59), la suppression de lignes de recette laissait les
+   vraies en positions 2 et 3 (nº 60), et la suite navigateur réordonnait les
+   deux rapports de l'utilisateur sans les remettre (nº 60 encore). Les trois se
+   sont manifestés par des échecs qui désignaient du code correct, sur trois
+   suites différentes. **C'est l'enchaînement des suites qui les a révélés, pas
+   leur exécution individuelle.**
+
+### Points de vigilance légués
+
+- **⚠️ Déposer un PDF dans `public/documents/` ne fait PLUS rien** — et ce
+  dossier n'a d'ailleurs jamais existé. La marche à suivre est : Médiathèque →
+  téléverser le PDF, puis Documents → ouvrir le rapport et choisir le fichier.
+  C'est un geste de plus, et c'est le prix du reste : un document catalogué
+  porte son poids, son type réel et ses usages, et ne peut plus être supprimé
+  par accident tant qu'un rapport pointe dessus.
+- **⚠️ Les deux rapports sont EN LIGNE et SANS PDF**, ce qui est exactement ce
+  que le site affichait déjà. Le premier vrai PDF déposé fera apparaître son
+  bouton « Télécharger » sans autre geste. **C'est le premier bénéfice concret
+  du lot pour l'utilisateur**, et il ne demande aucune intervention technique.
+- **⚠️ L'ordre des rapports et leurs années peuvent diverger.** Un rapport créé
+  se place en FIN de liste, quelle que soit son année. L'écran le signale, il ne
+  corrige pas. C'est la seule collection du projet dans ce cas, et c'est aussi
+  le seul endroit où une recette peut abîmer des données réelles sans le voir —
+  voir la découverte nº 60.
+- **⚠️ `errors.ts` traduit tout 23505 par « Cette adresse est déjà utilisée »**,
+  avec un `fieldErrors.slug`. C'est faux pour toute collection sans `slug`, et
+  ce lot le contourne en vérifiant l'unicité en amont. Le remède général — lire
+  le nom de la contrainte violée — est à écrire **au Lot 16**.
+- **⚠️ La section Documents de `/impact` n'est pas un composant.** Son balisage
+  est écrit en clair dans la page, et l'aperçu du dashboard le redessine
+  (écart nº 165). Seuls les libellés sont partagés, via le domaine. **Le Lot 9,
+  qui extrait des blocs de rendu, est l'occasion de la sortir.**
+- **Le relevé hors périmètre de `/impact` à 390 px** : 5 cibles sous 44 px, et
+  **aucune dans `#documents`** — « Aller au contenu principal » (32 × 16), le
+  bouton « Don » de l'en-tête (73 × 36), **« Nos programmes » (115 × 17)**, le
+  téléphone et l'e-mail du pied de page (127 × 20 et 136 × 20). Les quatre
+  premières familles sont celles des Lots 8F et 8H ; **« Nos programmes » est
+  nouvelle** — c'est le lien en ligne de la section « Zones d'intervention » de
+  cette page. À traiter au Lot 12.
+- **Le sitemap ne gagne aucune adresse** : un rapport n'a pas de page à lui.
+  Vérifié (suite 3, B13).
+- **Les trous des écarts nº 90, 99 et 102 existent toujours** dans
+  `programme.schema.ts`, `article.schema.ts` et `testimonial.schema.ts`. Le
+  remède est écrit et éprouvé six fois (8D à 8I). À appliquer au Lot 16.
+- **`/programmes` annonce « Huit domaines d'intervention » et l'accueil « Voir
+  les 8 programmes »** — écart nº 107, toujours ouvert. `src/lib/nombres.ts` est
+  prêt.
+- **La liste des endroits où un ÉDITEUR modifie ce que voit un visiteur
+  s'allonge encore** : après les écarts nº 104, 120, 130 et le renommage de
+  catégorie du Lot 8H, il peut désormais **réordonner les rapports d'activité et
+  corriger leur titre en ligne**. Rien ne disparaît, aucun contenu n'est retiré,
+  mais c'est le cinquième endroit. **Le Lot 8 est clos : cette liste mérite
+  d'être regardée d'un bloc, une fois, plutôt que lot par lot.**
 
 ---
 
+## Prochaine étape : Lot 9 — constructeur de pages et de sections
 
+**La série 8 est close.** Les neuf collections sont livrées, recettées, et
+aucune page publique ne lit plus `src/content/` pour une donnée de collection.
+
+Le Lot 9 est décrit au §9 du Rapport 2 — « la Famille B, le lot le plus
+structurant du CMS » : les **17 blocs** du §10 du Rapport 1, chacun avec
+`schema`, `defaults`, `fields` et `Renderer`, plus le registre qui les agrège,
+et l'écran qui compose une page à partir d'eux.
+
+Ce que la série 8 lègue et qui compte pour le Lot 9 :
+
+- **`BlockDescriptor` NE POURRA PAS vivre dans `core/`** — écart nº 41, consigné
+  dès le Lot 6 dans `core/cms/blocks/types.ts` pour que le Lot 9 ne découvre pas
+  le mur en cours de route. Le §10 le déclare avec `icon: LucideIcon` et
+  `Renderer: ComponentType`, deux types que la règle de dépendance interdit à
+  `core/`. Le partage devra suivre le patron de `MediaTone` (écart nº 6).
+- **`page_sections` porte déjà 30 sections SQUELETTES** (écart nº 15) :
+  `block_type` et `position` sont posés, `content` est vide, et
+  `SectionRenderer` ignore une section invalide sans casser la page. Le contenu
+  est explicitement le travail de ce lot.
+- **Le gabarit est stable sur NEUF collections**, en deux variantes : à cycle
+  éditorial (8A–8D, 8F, 8H, 8I) et à visibilité binaire (8E, 8G). Les écrans du
+  Lot 9 ne ressemblent à aucun des deux — une page n'est pas une collection —
+  mais `<SchemaForm>`, `<DataTable>`, `<FormModal>` et `<ConfirmDialog>` sont
+  désormais éprouvés par neuf appelants réels.
+- **Trois sections publiques attendent d'être extraites en composants** : les
+  lignes de la section Documents de `/impact` (écart nº 165), et plus
+  généralement tout ce que les pages écrivent en clair. Un `Renderer` de bloc
+  est exactement la forme qui le permet.
+- **Le module CDP est à réécrire à chaque lot**, et ses parades sont acquises :
+  dimensionner avant de mesurer (nº 31, 41), attendre une condition (nº 33) et
+  la BONNE (nº 48, nº 61), saisie relue (nº 37), contexte isolé par rôle
+  (nº 36), purge à l'entrée (nº 40) **et rétablissement des positions (nº 60)**,
+  bornage au périmètre (nº 42–43, **nº 63**), IIFE async (nº 46), attendre la
+  mutation (nº 47), zone sensible composée (nº 49), 16 px sous `md:` (nº 50),
+  options de Radix absentes du HTML (nº 52), capture choisie par son contenu
+  (nº 54), thème écrit dans `localStorage` puis rechargé (nº 55), sonde qui
+  mesure zéro (nº 56), libellé préfixe d'un autre (nº 57), **vrai clic de souris
+  pour un `DropdownMenu` (nº 58)**, **code de sortie rendu et non `exit()`
+  (nº 59)**, **sonde de code privée de ses commentaires (nº 62)**.
+- **Purger le journal d'audit en fin de recette** : quatre lots de suite l'ont
+  fait, et le contrôle qui compte est la mesure DATÉE, pas le compteur global.
+- **Vérifier le disque AVANT de commencer** (nº 35) : `npm-cache` d'abord, puis
+  `.next/cache`. Il restait **2,6 Go** au démarrage de ce lot — la marge est
+  désormais mince. `npm cache clean --force` et la purge de `.next/cache` ont
+  rendu 260 Mo, ce qui a suffi, mais ce sera à surveiller de près au Lot 9, qui
+  touchera beaucoup plus de fichiers.
+
+---
 
 ## Ce qu'a livré le Lot 6 (détail)
 

@@ -496,16 +496,34 @@ insert into public.gallery_categories (slug, label, tone, position) values
 -- entrées existent bien dans le fichier source, et les omettre ferait perdre
 -- la donnée au Lot 8I.
 --
--- `status = 'draft'` et aucun document rattaché : c'est exactement le
--- comportement actuel, puisque `public/documents/` n'existe pas et que le
--- lien reste masqué tant que le PDF est absent.
+-- Aucun document rattaché : `public/documents/` n'existe pas, et le lien reste
+-- masqué tant que le PDF est absent. C'est exactement le comportement actuel.
+--
+-- ⚠️  `status = 'published'` — CORRIGÉ AU LOT 8I, ET C'EST UN VRAI DÉFAUT DU
+-- SEED, PAS UN CHANGEMENT D'AVIS.
+--
+-- Ces deux lignes étaient seedées en `'draft'`, au motif que « le lien reste
+-- masqué tant que le PDF est absent » — vrai pour le LIEN, faux pour la LIGNE.
+-- Le site affiche aujourd'hui les deux rapports, avec la mention « En cours de
+-- préparation » et la pastille « Bientôt disponible » : ce sont deux contenus
+-- visibles, pas deux absences.
+--
+-- Tant que rien ne lisait cette table, l'écart ne se voyait pas. À la bascule
+-- du Lot 8I, il devenait une régression : la lecture publique ne rend que les
+-- rapports `published`, et la section « Rapports d'activité » aurait disparu
+-- de `/impact`. Or le §8x exige que « le rendu public soit IDENTIQUE à l'actuel
+-- pour les données migrées ».
+--
+-- ⚠️  Le trigger `guard_publish` laisse passer parce que `auth.uid()` est nul
+-- pendant le seed (écart nº 9) — c'est la même porte qui permet d'insérer les
+-- 8 programmes publiés.
 --
 -- Les années étaient calculées (`année courante - 1` et `- 2`) : elles sont
 -- figées ici, comme les chiffres du §3.
 -- ---------------------------------------------------------------------------
 insert into public.annual_reports (year, title, position, status) values
-  (2025, $t$Rapport d'activité 2025$t$, 1, 'draft'),
-  (2024, $t$Rapport d'activité 2024$t$, 2, 'draft');
+  (2025, $t$Rapport d'activité 2025$t$, 1, 'published'),
+  (2024, $t$Rapport d'activité 2024$t$, 2, 'published');
 
 
 -- ===========================================================================
