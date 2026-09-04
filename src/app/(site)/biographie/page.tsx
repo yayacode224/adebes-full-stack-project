@@ -1,23 +1,12 @@
-import { ArrowRight, Info } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 
-import { ValueCard } from "@/components/cards/value-card";
-import { Container } from "@/components/layout/container";
+import { SectionsRenderer } from "@/components/blocks/section-renderer";
 import { PageHero } from "@/components/layout/page-hero";
-import { MediaImage } from "@/components/media/media-image";
 import { JsonLd, breadcrumbJsonLd, personJsonLd } from "@/components/seo/json-ld";
-import { Button } from "@/components/ui/button";
 import { CTABanner } from "@/components/ui-ext/cta-banner";
-import { PlaceholderBadge } from "@/components/ui-ext/placeholder-badge";
-import { Reveal } from "@/components/ui-ext/reveal";
-import { SectionHeading } from "@/components/ui-ext/section-heading";
-import {
-  biographie,
-  domainesEngagement,
-  engagementsBiographie,
-} from "@/content/biographie";
+import { biographie } from "@/content/biographie";
 import { resolveMedia } from "@/lib/media";
+import { getPagePublique } from "@/server/queries/pages.query";
 
 export const metadata: Metadata = {
   title: "Biographie",
@@ -30,13 +19,50 @@ export const metadata: Metadata = {
   },
 };
 
-export default function BiographiePage() {
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ *  /biographie — bascule sur les sections (§9.5)
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * ---------------------------------------------------------------------------
+ * LES QUATRE SECTIONS DU CORPS SONT DÉSORMAIS DES SECTIONS DE PAGE
+ * ---------------------------------------------------------------------------
+ * Le portrait, les paragraphes de présentation, les quatre domaines
+ * d'activité, les deux engagements et la liste « informations en attente »
+ * viennent tous de `src/content/biographie.ts` — INCHANGÉ, ce fichier reste la
+ * source du texte. Ce sont les COMPOSANTS de rendu qui changent : quatre
+ * `<section>` écrites à la main deviennent quatre sections `image-text` /
+ * `feature-list` / `feature-list` / `rich-text`, éditables depuis
+ * `/dashboard/pages`.
+ *
+ * ⚠️  TROIS SIMPLIFICATIONS VISUELLES ASSUMÉES, DOCUMENTÉES DANS L'EN-TÊTE DE
+ * `src/recette/lot9-migration-contenu.ts` (temporaire ; le choix définitif est
+ * reproduit dans `supabase/seed.sql`) :
+ *
+ *   1. Les quatre domaines d'activité s'affichaient sur QUATRE colonnes à
+ *      partir de `lg:` ; `feature-list` en propose trois au maximum ;
+ *   2. La section « Informations en attente » perd son bandeau
+ *      `<PlaceholderBadge>` et ses puces à icône : le texte est repris à
+ *      l'identique, en paragraphes (`rich-text`, qui n'a pas de liste à
+ *      puces) ;
+ *   3. Le portrait (`portrait.png`) est désormais servi depuis la médiathèque,
+ *      et non plus `/public` — migré avec le même texte alternatif.
+ *
+ * Cette page n'avait PAS `force-dynamic` avant ce lot : elle ne lisait rien de
+ * la base. Elle le porte désormais, pour la raison commune à toutes les pages
+ * migrées — une section publiée depuis le dashboard doit apparaître sans
+ * attendre un déploiement.
+ */
+export const dynamic = "force-dynamic";
+
+export default async function BiographiePage() {
   /**
    * Le portrait n'est déclaré dans les données structurées que s'il a
    * réellement été déposé : même règle que pour les rapports de la page
    * Impact — on ne référence jamais un fichier qui n'existe pas.
    */
   const portrait = resolveMedia(biographie.media.portrait);
+  const page = await getPagePublique("/biographie");
 
   return (
     <>
@@ -66,145 +92,10 @@ export default function BiographiePage() {
         tone="navy"
       />
 
-      {/* --- Présentation --- */}
-      <section className="py-14 lg:py-20">
-        <Container size="wide">
-          {/*
-            2/5 – 3/5 plutôt que deux colonnes égales : un portrait 3:4 sur une
-            demi-largeur dépasserait 750 px de haut et écraserait le texte, qui
-            est le contenu principal d'une biographie.
-          */}
-          <div className="grid items-start gap-10 lg:grid-cols-5 lg:gap-14">
-            <Reveal className="lg:col-span-2">
-              <div className="relative mx-auto aspect-[3/4] w-full max-w-md overflow-hidden rounded-2xl bg-muted lg:sticky lg:top-28 lg:mx-0 lg:max-w-none">
-                <MediaImage
-                  src={biographie.media.portrait}
-                  alt={biographie.media.portraitAlt}
-                  fill
-                  kind="portrait"
-                  tone="navy"
-                  sizes="(min-width: 1024px) 38vw, (min-width: 640px) 28rem, 90vw"
-                />
-              </div>
-            </Reveal>
-
-            <Reveal delay={0.1} className="lg:col-span-3">
-              <SectionHeading
-                badge="Présentation"
-                title="Un parcours au service du développement"
-                subtitle={`${biographie.role} — ${biographie.country}.`}
-              />
-
-              <div className="mt-6 flex flex-col gap-4 text-[0.95rem] leading-relaxed text-muted-foreground">
-                {biographie.presentation.map((paragraphe) => (
-                  <p key={paragraphe}>{paragraphe}</p>
-                ))}
-              </div>
-
-              <Button asChild variant="outline" className="mt-7">
-                <Link href="/a-propos">
-                  Découvrir l&apos;association
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </Link>
-              </Button>
-            </Reveal>
-          </div>
-        </Container>
-      </section>
-
-      {/* --- Domaines d'engagement --- */}
-      <section className="bg-card py-14 lg:py-20">
-        <Container size="wide">
-          <Reveal>
-            <SectionHeading
-              badge="Domaines d'activité"
-              title="Quatre terrains d'engagement"
-              align="center"
-            />
-          </Reveal>
-
-          <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {domainesEngagement.map((domaine, index) => (
-              <Reveal as="li" key={domaine.title} delay={index * 0.06}>
-                <ValueCard valeur={domaine} className="h-full" />
-              </Reveal>
-            ))}
-          </ul>
-        </Container>
-      </section>
-
-      {/* --- Action sociale et contribution --- */}
-      <section className="py-14 lg:py-20">
-        <Container size="default">
-          <Reveal>
-            <SectionHeading
-              badge="Au-delà de l'économie"
-              title="Une action tournée vers les personnes"
-              subtitle="Les activités économiques ne résument pas son engagement : le soin apporté aux personnes malades et la contribution au développement du pays en font partie intégrante."
-            />
-          </Reveal>
-
-          <ul className="mt-8 grid gap-4 sm:grid-cols-2">
-            {engagementsBiographie.map((engagement, index) => {
-              const Icon = engagement.icon;
-
-              return (
-                <Reveal as="li" key={engagement.title} delay={index * 0.06}>
-                  <div className="flex h-full gap-4 rounded-2xl border border-border bg-card p-5">
-                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-green/12 text-brand-green-ink dark:text-brand-green">
-                      <Icon className="size-5" aria-hidden="true" />
-                    </span>
-                    <div>
-                      <h3 className="font-heading text-base font-semibold text-foreground">
-                        {engagement.title}
-                      </h3>
-                      <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                        {engagement.description}
-                      </p>
-                    </div>
-                  </div>
-                </Reveal>
-              );
-            })}
-          </ul>
-        </Container>
-      </section>
-
-      {/* --- Ce qui reste à fournir --- */}
-      <section className="border-t border-border bg-card py-14 lg:py-20">
-        <Container size="default">
-          <Reveal>
-            <div className="rounded-2xl border border-border bg-background p-6 sm:p-8">
-              <PlaceholderBadge>Biographie à compléter</PlaceholderBadge>
-
-              <h2 className="mt-4 font-heading text-xl font-semibold text-foreground sm:text-2xl">
-                Informations en attente
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Seuls les éléments transmis figurent sur cette page : aucune
-                date ni aucune fonction n&apos;a été ajoutée par déduction. Les
-                précisions suivantes viendront la compléter dès qu&apos;elles
-                seront fournies.
-              </p>
-
-              <ul className="mt-5 flex flex-col gap-2.5">
-                {biographie.informationsAFournir.map((information) => (
-                  <li
-                    key={information}
-                    className="flex items-start gap-2.5 text-sm leading-relaxed text-muted-foreground"
-                  >
-                    <Info
-                      className="mt-0.5 size-4 shrink-0 text-brand-orange-ink dark:text-brand-orange"
-                      aria-hidden="true"
-                    />
-                    {information}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </Reveal>
-        </Container>
-      </section>
+      <SectionsRenderer
+        sections={page?.sections ?? []}
+        page={page ?? { slug: "biographie", route: "/biographie", title: biographie.name }}
+      />
 
       <CTABanner
         title="Soutenir les actions d'ADEBES"

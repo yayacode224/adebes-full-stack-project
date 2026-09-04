@@ -1,4 +1,7 @@
+import type { z } from "zod";
+
 import type { Resource } from "../../rbac/permissions";
+import type { BlockCategory, BlockType } from "../entities/block-type";
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -227,3 +230,64 @@ export const CHAMPS_PLEINE_LARGEUR: readonly FieldKind[] = [
 export function estPleineLargeur(champ: FieldDescriptor): boolean {
   return CHAMPS_PLEINE_LARGEUR.includes(champ.kind);
 }
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ *  LA MOITIÉ DOMAINE DU DESCRIPTEUR DE BLOC — Lot 9
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * L'avertissement posé au Lot 6 en haut de ce fichier est ici honoré, sans
+ * détour : le §10 déclare `BlockDescriptor` avec `icon: LucideIcon` et
+ * `Renderer: ComponentType`, deux types que la règle de dépendance interdit à
+ * `core/`. Le descripteur est donc coupé en deux, comme `MediaTone` (écart
+ * nº 6) et comme la liste d'icônes (écart du Lot 8E) :
+ *
+ *   * **ici**, `BlockDefinition` — ce qu'un bloc EST : son identité, son
+ *     schéma, ses valeurs par défaut, ses champs de saisie. Testable sans
+ *     React, sans navigateur, sans base ;
+ *   * **dans `src/components/blocks/registry.tsx`**, `BlockPresentation` —
+ *     comment un bloc se DESSINE : son icône dans le sélecteur, son `Renderer`
+ *     sur le site public.
+ *
+ * Le registre de présentation se déclare `Record<BlockType, …>` : **ajouter un
+ * bloc ici sans ajouter son rendu là-bas casse la compilation.** C'est le même
+ * verrou que celui d'`ICON_NAMES` / `ICONS`, et c'est ce qui rend la coupure
+ * sûre plutôt que dangereuse.
+ *
+ * ---------------------------------------------------------------------------
+ * ⚠️  `schema` VALIDE À L'ÉCRITURE **ET** À LA LECTURE
+ * ---------------------------------------------------------------------------
+ * C'est la troisième propriété du §10, et la seule qui protège la production :
+ * `page_sections.content` est du JSONB, donc une colonne sans forme. Un contenu
+ * écrit par une version antérieure du schéma, ou modifié à la main dans le SQL
+ * Editor, arrive tel quel au rendu. `SectionRenderer` le repasse par ce schéma
+ * et n'affiche rien s'il ne passe pas — plutôt qu'une page blanche en
+ * production (§16 du Rapport 1).
+ */
+export type BlockDefinition<S extends z.ZodType = z.ZodType> = {
+  type: BlockType;
+  /** Libellé humain : « Bannière d'appel à l'action ». Jamais le `type`. */
+  label: string;
+  /** Aide du sélecteur de blocs. Dit ce que le bloc AFFICHE, pas comment. */
+  description: string;
+  category: BlockCategory;
+  /** Validation du contenu JSONB, à l'écriture comme à la lecture. */
+  schema: S;
+  /** Contenu d'un bloc fraîchement ajouté. Doit satisfaire `schema`. */
+  defaults: z.infer<S>;
+  /** Pilote le formulaire généré par `<SchemaForm>`. Jamais de JSX. */
+  fields: FieldDescriptor[];
+  /**
+   * Le bloc lit une collection gérée ailleurs dans le dashboard.
+   *
+   * ⚠️  Ce drapeau ne change rien au rendu : il change ce que l'ÉCRAN DIT.
+   * Un « Grille de programmes » vide ne se répare pas en remplissant son
+   * formulaire — il n'a pas de contenu propre à remplir — mais en publiant un
+   * programme depuis `/dashboard/programmes`. Sans cette indication, la seule
+   * conclusion possible devant une section vide est « le bloc est cassé ».
+   *
+   * La valeur est le libellé de la destination, telle qu'elle apparaît dans la
+   * navigation du dashboard : « Programmes », « Actualités », « Chiffres clés ».
+   */
+  collection?: string;
+};

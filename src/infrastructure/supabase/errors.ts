@@ -23,12 +23,14 @@ import { AppError } from "@/core/shared/errors";
  * sont donc transmis TELS QUELS, sans passer par la table de correspondance
  * générique — c'est le contrat écrit en tête de la migration 0010.
  */
-const GUARD_CODES: Record<string, "FORBIDDEN" | "CONFLICT"> = {
+const GUARD_CODES: Record<string, "FORBIDDEN" | "CONFLICT" | "NOT_FOUND"> = {
   ADB01: "FORBIDDEN", // publication refusée à un éditeur       (migration 0010)
   ADB02: "CONFLICT", //  dernier super administrateur actif      (migration 0010)
   ADB03: "CONFLICT", //  page système non supprimable            (migration 0010)
   ADB04: "FORBIDDEN", // table non autorisée au réordonnancement (migration 0012)
   ADB05: "FORBIDDEN", // droits insuffisants pour réordonner     (migration 0012)
+  ADB06: "FORBIDDEN", // ajout de section refusé à un éditeur    (migration 0014)
+  ADB07: "NOT_FOUND", // page absente à l'insertion de section   (migration 0014)
 };
 
 /**

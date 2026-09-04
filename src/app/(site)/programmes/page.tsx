@@ -1,21 +1,28 @@
 import type { Metadata } from "next";
 
-import { ProgrammeCard } from "@/components/cards/programme-card";
-import { Container } from "@/components/layout/container";
+import { SectionsRenderer } from "@/components/blocks/section-renderer";
 import { PageHero } from "@/components/layout/page-hero";
 import { JsonLd, breadcrumbJsonLd } from "@/components/seo/json-ld";
 import { CTABanner } from "@/components/ui-ext/cta-banner";
-import { Reveal } from "@/components/ui-ext/reveal";
-import { resoudreMedias } from "@/server/queries/media.query";
-import { getProgrammesPublies } from "@/server/queries/programmes.query";
+import { getPagePublique } from "@/server/queries/pages.query";
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
- *  /programmes — bascule sur la base (§8A.5)
+ *  /programmes — bascule sur la base (§8A.5), puis sur les sections (§9.5)
  * ═══════════════════════════════════════════════════════════════════════════
  *
- * La page lit `src/server/queries/programmes.query.ts` et n'importe plus
- * `src/content/programmes.ts`.
+ * ---------------------------------------------------------------------------
+ * ⚠️  LA GRILLE EST DÉSORMAIS UNE SECTION — LE CODE NE L'APPELLE PLUS
+ * ---------------------------------------------------------------------------
+ * `getProgrammesPublies()` est appelé par `<ProgrammesGridRenderer>`, pas ici.
+ * Le contenu de la section (limite, libellés) se règle depuis
+ * `/dashboard/pages` ; il n'y a plus de `FieldDescriptor` ni de JSX propres à
+ * cette page.
+ *
+ * ⚠️  L'état « aucun programme publié » (message « Nos programmes arrivent »)
+ * disparaît avec la migration : `<ProgrammesGridRenderer>` ne rend rien dans ce
+ * cas, comme tous les blocs de collection. Le cas est dormant — huit
+ * programmes sont publiés — et consigné plutôt que corrigé en douce.
  *
  * ---------------------------------------------------------------------------
  * ⚠️  `force-dynamic` — TRANSITOIRE, À RETIRER AU LOT 15
@@ -59,10 +66,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ProgrammesPage() {
-  const programmes = await getProgrammesPublies();
-  const medias = await resoudreMedias(
-    programmes.map((programme) => programme.coverMediaId),
-  );
+  const page = await getPagePublique("/programmes");
 
   return (
     <>
@@ -82,45 +86,10 @@ export default async function ProgrammesPage() {
         tone="blue"
       />
 
-      <section className="py-16 lg:py-24">
-        <Container size="wide">
-          {programmes.length === 0 ? (
-            /*
-              Aucun programme publié. Une grille vide et muette laisserait
-              croire à une page cassée — c'est l'invariant nº 1 transposé au
-              site public : une absence se dit, elle ne se laisse pas deviner.
-            */
-            <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-12 text-center">
-              <h2 className="font-heading text-lg font-semibold text-foreground">
-                Nos programmes arrivent
-              </h2>
-              <p className="mx-auto mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground">
-                Les pages de nos domaines d&apos;intervention sont en cours de
-                préparation. Écrivez-nous : nous vous dirons ce que nous menons
-                en ce moment sur le terrain.
-              </p>
-            </div>
-          ) : (
-            <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {programmes.map((programme, index) => (
-                <Reveal as="li" key={programme.slug} delay={(index % 3) * 0.06}>
-                  <ProgrammeCard
-                    programme={programme}
-                    cover={
-                      programme.coverMediaId
-                        ? medias.get(programme.coverMediaId)
-                        : null
-                    }
-                    // Les trois premières cartes sont visibles d'emblée : leur
-                    // image ne doit pas être différée.
-                    priority={index < 3}
-                  />
-                </Reveal>
-              ))}
-            </ul>
-          )}
-        </Container>
-      </section>
+      <SectionsRenderer
+        sections={page?.sections ?? []}
+        page={page ?? { slug: "programmes", route: "/programmes", title: "Nos programmes" }}
+      />
 
       <CTABanner
         title="Un programme vous parle plus que les autres ?"

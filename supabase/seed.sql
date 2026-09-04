@@ -566,67 +566,75 @@ insert into public.pages (slug, route, title, status, is_system, published_at) v
   ($t$politique-confidentialite$t$,  $t$/politique-confidentialite$t$, $t$Politique de confidentialité$t$,'published', true, now());
 
 
--- Les sections, dans l'ordre exact du relevé du §1 du Rapport 1.
+-- Les sections, avec leur contenu RÉEL — migré au Lot 9 (§9.5 du Rapport 2)
+-- depuis les dix pages `.tsx` alors statiques. Le texte est repris mot pour
+-- mot ; trois écarts par rapport au relevé initial du §1 du Rapport 1 sont
+-- documentés dans l'en-tête de `src/recette/lot9-migration-contenu.ts`
+-- (fichier temporaire du lot, supprimé une fois la migration recettée) :
 --
--- Note sur `/benevolat` et `/contact` : le relevé mentionne un « Formulaire ».
--- Aucun bloc du registre v1 ne le couvre — les formulaires restent des
--- composants de code (`react-hook-form` + Server Action), et c'est voulu :
--- un formulaire n'est pas du contenu éditorial. Ils ne figurent donc pas
--- ci-dessous. Même remarque pour la « Carte » de `/contact`.
+--   * `/a-propos` position 4 : `rich-text` prévu au §1, `feature-list` réel —
+--     le contenu (deux cartes icône + titre + description) est la forme
+--     exacte de ce bloc, pas du texte libre ;
+--   * `/don` et `/benevolat` : une seule des sections prévues correspond à du
+--     contenu ÉDITORIAL statique. « À quoi sert votre don » et « Domaines
+--     d'engagement » listent des PROGRAMMES lus en direct — une donnée
+--     dérivée d'une autre collection, pas du contenu propre à la page — et
+--     restent du code (`src/app/(site)/don/page.tsx`,
+--     `src/app/(site)/benevolat/page.tsx`), comme le formulaire et la carte
+--     de `/contact` l'étaient déjà avant ce lot ;
+--   * `/contact` n'a AUCUNE section : sa colonne « Coordonnées » est
+--     indissociable de la mise en page à deux colonnes qui l'associe au
+--     formulaire, et `contact-info` n'a pas cette forme. La page reste 100 %
+--     du code.
+--
+-- Trois visuels ont été migrés dans le bucket `media` à cette occasion
+-- (`histoire-01.png`, `histoire-01.jpeg`, `portrait.png` — mêmes fichiers,
+-- mêmes textes alternatifs que le code d'origine) ; leurs identifiants sont
+-- donc FIXES ci-dessous plutôt que recalculés, contrairement aux quatre
+-- photos de galerie du Lot 8H qui restent résolues par sous-requête. Une
+-- installation neuve doit téléverser ces trois fichiers AVANT ce script —
+-- voir `docs/REPRISE-CONTEXTE.md`, section Lot 9 — et corriger les trois
+-- `mediaId` ci-dessous si les identifiants générés diffèrent.
 insert into public.page_sections (page_id, block_type, position, content)
-select p.id, s.block_type, s.position, '{}'::jsonb
+select p.id, s.block_type, s.position, s.content
 from public.pages p
 join (values
-  -- / — Chiffres clés · Qui sommes-nous · Valeurs · Programmes · Témoignages · Actualités · FAQ
-  ($t$accueil$t$,    $t$stats-grid$t$,       1),
-  ($t$accueil$t$,    $t$image-text$t$,       2),
-  ($t$accueil$t$,    $t$values-grid$t$,      3),
-  ($t$accueil$t$,    $t$programmes-grid$t$,  4),
-  ($t$accueil$t$,    $t$testimonials$t$,     5),
-  ($t$accueil$t$,    $t$news-grid$t$,        6),
-  ($t$accueil$t$,    $t$faq$t$,              7),
-
-  -- /a-propos — Mission · Valeurs · Équipe · Gouvernance
-  ($t$a-propos$t$,   $t$image-text$t$,       1),
-  ($t$a-propos$t$,   $t$values-grid$t$,      2),
-  ($t$a-propos$t$,   $t$team-grid$t$,        3),
-  ($t$a-propos$t$,   $t$rich-text$t$,        4),
-
-  -- /biographie — Présentation · Domaines · Action sociale · À fournir
-  ($t$biographie$t$, $t$image-text$t$,       1),
-  ($t$biographie$t$, $t$feature-list$t$,     2),
-  ($t$biographie$t$, $t$rich-text$t$,        3),
-  ($t$biographie$t$, $t$rich-text$t$,        4),
-
-  -- /programmes — page d'index de la collection
-  ($t$programmes$t$, $t$programmes-grid$t$,  1),
-
-  -- /impact — Chiffres · Engagements · Rapports · Zones d'intervention
-  ($t$impact$t$,     $t$stats-grid$t$,       1),
-  ($t$impact$t$,     $t$feature-list$t$,     2),
-  ($t$impact$t$,     $t$documents-list$t$,   3),
-  ($t$impact$t$,     $t$feature-list$t$,     4),
-
-  -- /actualites — page d'index de la collection
-  ($t$actualites$t$, $t$news-grid$t$,        1),
-
-  -- /galerie — Grille filtrable · Vidéo
-  ($t$galerie$t$,    $t$gallery-preview$t$,  1),
-  ($t$galerie$t$,    $t$video$t$,            2),
-
-  -- /don — Montants + WhatsApp · À quoi sert un don · Autres moyens · FAQ dons
-  ($t$don$t$,        $t$donation-options$t$, 1),
-  ($t$don$t$,        $t$feature-list$t$,     2),
-  ($t$don$t$,        $t$rich-text$t$,        3),
-  ($t$don$t$,        $t$faq$t$,              4),
-
-  -- /benevolat — Domaines d'engagement · [formulaire : code] · FAQ bénévolat
-  ($t$benevolat$t$,  $t$feature-list$t$,     1),
-  ($t$benevolat$t$,  $t$faq$t$,              2),
-
-  -- /contact — [formulaire : code] · Coordonnées · [carte : code]
-  ($t$contact$t$,    $t$contact-info$t$,     1)
-) as s(page_slug, block_type, position) on s.page_slug = p.slug;
+  -- accueil
+  ($t$accueil$t$, $t$stats-grid$t$, 1, $t${"align":"left","badge":"","title":"","subtitle":"","showNotes":false}$t$::jsonb),
+  ($t$accueil$t$, $t$image-text$t$, 2, $t${"tone":"blue","badge":"Qui sommes-nous","title":"Une association camerounaise au service des communautés","bullets":["Présente à Douala, Yaoundé et dans les régions de l'intérieur","8 programmes complémentaires, du soutien scolaire à l'autonomisation des femmes","Une action de terrain menée avec les communautés, pas à leur place"],"ctaHref":"/a-propos","mediaId":"6d001cc6-3221-4448-9523-601695253102","ctaLabel":"En savoir plus sur ADEBES","subtitle":"ADEBES est une organisation à but non lucratif qui agit dans l'éducation, la santé, l'inclusion sociale et le développement communautaire.","imageSide":"left","paragraphs":[]}$t$::jsonb),
+  ($t$accueil$t$, $t$values-grid$t$, 3, $t${"align":"center","badge":"Nos valeurs","title":"Ce qui guide chacune de nos actions","subtitle":""}$t$::jsonb),
+  ($t$accueil$t$, $t$programmes-grid$t$, 4, $t${"badge":"Nos programmes","limit":6,"title":"Huit domaines d'intervention","ctaHref":"/programmes","ctaLabel":"Voir les 8 programmes","subtitle":"Chaque programme a sa page dédiée : objectifs, actions menées et façons concrètes de le soutenir."}$t$::jsonb),
+  ($t$accueil$t$, $t$testimonials$t$, 5, $t${"align":"center","badge":"Témoignages","limit":3,"title":"Celles et ceux qui font vivre ADEBES","subtitle":"Bénéficiaires, bénévoles et partenaires racontent ce que change une action de terrain."}$t$::jsonb),
+  ($t$accueil$t$, $t$news-grid$t$, 6, $t${"badge":"Actualités","limit":3,"title":"Les nouvelles du terrain","ctaHref":"/actualites","ctaLabel":"Toutes les actualités","subtitle":"Les dernières actions menées et les prochaines échéances."}$t$::jsonb),
+  ($t$accueil$t$, $t$faq$t$, 7, $t${"align":"center","badge":"Questions fréquentes","title":"Vous vous posez ces questions","source":"accueil","subtitle":"","openFirst":false,"background":"surface","footerHref":"/contact","footerText":"Une autre question ?","footerLinkLabel":"Écrivez-nous"}$t$::jsonb),
+  -- a-propos
+  ($t$a-propos$t$, $t$image-text$t$, 1, $t${"tone":"blue","badge":"Notre mission","title":"Agir avec les communautés, pas à leur place","bullets":[],"ctaHref":"/programmes","mediaId":"cae9e272-2ce2-42b9-ac32-74de14e3b430","ctaLabel":"Découvrir nos 8 programmes","subtitle":"ADEBES est une organisation camerounaise à but non lucratif qui intervient dans l'éducation, la santé, l'inclusion sociale et le développement communautaire.","imageSide":"left","paragraphs":["Nous intervenons principalement à Douala et Yaoundé, ainsi que dans les régions de l'intérieur du Cameroun, là où les besoins identifiés avec les habitants ne trouvent pas de réponse.","Nos huit programmes sont complémentaires : soutenir la scolarité d'un enfant a peu de sens si sa famille n'a pas accès aux soins, et former une femme à un métier suppose qu'elle dispose d'un capital de départ. C'est cette articulation qui fait notre méthode."]}$t$::jsonb),
+  ($t$a-propos$t$, $t$values-grid$t$, 2, $t${"align":"center","badge":"Nos valeurs","title":"Quatre principes appliqués au quotidien","subtitle":""}$t$::jsonb),
+  ($t$a-propos$t$, $t$team-grid$t$, 3, $t${"align":"left","badge":"L'équipe","title":"Celles et ceux qui portent l'association","subtitle":"Savoir qui dirige une association est un signal de confiance au moins aussi important qu'un chiffre d'impact."}$t$::jsonb),
+  ($t$a-propos$t$, $t$feature-list$t$, 4, $t${"align":"left","badge":"Gouvernance","items":[{"icon":"Landmark","title":"Statut juridique","description":"Association camerounaise à but non lucratif. Numéro d'enregistrement : [À COMPLÉTER]"},{"icon":"ShieldCheck","title":"Redevabilité","description":"Rapports d'activité publiés et chiffres sourcés sur la page Impact et transparence."}],"title":"Statut et transparence","columns":"2","centered":false,"subtitle":"Les informations légales complètes figurent dans les mentions légales et sur la page Impact.","footerHref":"","footerText":"","footerLinkLabel":""}$t$::jsonb),
+  -- biographie
+  ($t$biographie$t$, $t$image-text$t$, 1, $t${"tone":"navy","badge":"Présentation","title":"Un parcours au service du développement","bullets":[],"ctaHref":"/a-propos","mediaId":"c4efdb9c-8910-4eba-93a5-aaf35552db27","ctaLabel":"Découvrir l'association","subtitle":"Homme politique et opérateur économique — Cameroun.","imageSide":"left","paragraphs":["En parallèle de ses activités économiques, il prend en charge des personnes malades par les soins traditionnels: le traitement à l'indigène, une pratique de proximité ancrée dans les savoirs locaux.","Engagement public, investissement productif et action de terrain se rejoignent dans une même finalité : contribuer au développement du Cameroun."]}$t$::jsonb),
+  ($t$biographie$t$, $t$feature-list$t$, 2, $t${"align":"center","badge":"Domaines d'activité","items":[{"icon":"Landmark","title":"Engagement politique","description":"Homme politique, engagé dans la vie publique et le débat citoyen au Cameroun."},{"icon":"Sprout","title":"Agriculture","description":"Investisseur dans le secteur agricole, moteur de production et d'emploi local."},{"icon":"HardHat","title":"Bâtiment et travaux publics","description":"Investisseur dans le bâtiment et les travaux publics, au service des infrastructures."},{"icon":"Briefcase","title":"Opérateur économique","description":"Acteur du tissu économique camerounais, à travers plusieurs secteurs d'activité."}],"title":"Quatre terrains d'engagement","columns":"3","centered":true,"subtitle":"","footerHref":"","footerText":"","footerLinkLabel":""}$t$::jsonb),
+  ($t$biographie$t$, $t$feature-list$t$, 3, $t${"align":"left","badge":"Au-delà de l'économie","items":[{"icon":"HeartPulse","title":"Soins aux personnes malades","description":"Il prend en charge des personnes malades par les soins traditionnels: le traitement à l'indigène, selon les savoirs et la pharmacopée locale."},{"icon":"Globe","title":"Contribution au développement du pays","description":"Ses activités économiques comme son action de terrain concourent au développement du Cameroun."}],"title":"Une action tournée vers les personnes","columns":"2","centered":false,"subtitle":"Les activités économiques ne résument pas son engagement : le soin apporté aux personnes malades et la contribution au développement du pays en font partie intégrante.","footerHref":"","footerText":"","footerLinkLabel":""}$t$::jsonb),
+  ($t$biographie$t$, $t$rich-text$t$, 4, $t${"align":"left","badge":"Biographie à compléter","title":"Informations en attente","width":"default","subtitle":"","paragraphs":["Seuls les éléments transmis figurent sur cette page : aucune date ni aucune fonction n'a été ajoutée par déduction. Les précisions suivantes viendront la compléter dès qu'elles seront fournies.","Parcours détaillé : formation, dates et étapes clés.","Fonctions et mandats politiques exercés, avec leurs dates.","Lien avec ADEBES : fonction exercée ou nature du soutien apporté."]}$t$::jsonb),
+  -- programmes
+  ($t$programmes$t$, $t$programmes-grid$t$, 1, $t${"badge":"","limit":null,"title":"","ctaHref":"","ctaLabel":"","subtitle":""}$t$::jsonb),
+  -- impact
+  ($t$impact$t$, $t$stats-grid$t$, 1, $t${"align":"left","badge":"","title":"Nos chiffres","subtitle":"Chaque valeur est accompagnée de sa source. Les chiffres en attente de consolidation sont signalés plutôt qu'arrondis au hasard.","showNotes":true}$t$::jsonb),
+  ($t$impact$t$, $t$feature-list$t$, 2, $t${"align":"center","badge":"Nos engagements","items":[{"icon":"ShieldCheck","title":"Chaque don est affecté","description":"Un don est rattaché à un programme identifié. Vous pouvez préciser lequel au moment de votre contact."},{"icon":"ShieldCheck","title":"Un rapport sur demande","description":"Tout donateur peut demander le détail de l'utilisation de son don. La demande se fait par e-mail ou WhatsApp."},{"icon":"ShieldCheck","title":"Des chiffres vérifiables","description":"Nous ne publions que des chiffres issus de nos rapports d'activité. Un chiffre non consolidé n'est pas affiché."},{"icon":"ShieldCheck","title":"Aucune collecte cachée","description":"Le site ne collecte aucune donnée à votre insu. Les seules informations reçues sont celles que vous nous transmettez volontairement."}],"title":"Quatre règles que nous nous imposons","columns":"2","centered":false,"subtitle":"","footerHref":"","footerText":"","footerLinkLabel":""}$t$::jsonb),
+  ($t$impact$t$, $t$documents-list$t$, 3, $t${"badge":"Documents","title":"Rapports d'activité","subtitle":"L'ancien site promettait un rapport envoyé sur demande sans rien publier. Les rapports validés sont désormais téléchargeables directement ici.","footerHref":"mailto:contact@adebes.cm","footerText":"Vous souhaitez le détail de l'utilisation d'un don ?","footerLinkLabel":"contact@adebes.cm"}$t$::jsonb),
+  ($t$impact$t$, $t$feature-list$t$, 4, $t${"align":"center","badge":"Où nous agissons","items":[{"icon":"Globe","title":"Douala","description":"Siège de l'association et actions urbaines"},{"icon":"Globe","title":"Yaoundé","description":"Programmes éducatifs et sociaux"},{"icon":"Globe","title":"Régions de l'intérieur","description":"Campagnes de santé et actions rurales"}],"title":"Nos zones d'intervention","columns":"3","centered":true,"subtitle":"","footerHref":"","footerText":"","footerLinkLabel":""}$t$::jsonb),
+  -- actualites
+  ($t$actualites$t$, $t$news-grid$t$, 1, $t${"badge":"","limit":null,"title":"","ctaHref":"","ctaLabel":"","subtitle":""}$t$::jsonb),
+  -- galerie
+  ($t$galerie$t$, $t$gallery-preview$t$, 1, $t${"align":"left","badge":"","limit":null,"title":"","ctaHref":"","ctaLabel":"","subtitle":"","showFilters":true,"categorySlug":""}$t$::jsonb),
+  ($t$galerie$t$, $t$video$t$, 2, $t${"tone":"navy","align":"center","badge":"Vidéo","title":"ADEBES en mouvement","videoId":"","provider":"none","subtitle":"Les vidéos sont hébergées sur une plateforme externe et chargées uniquement au clic : aucune donnée mobile n'est consommée avant que vous ne lanciez la lecture.","videoTitle":"Présentation d'ADEBES","posterMediaId":null}$t$::jsonb),
+  -- don
+  ($t$don$t$, $t$donation-options$t$, 1, $t${"align":"center","badge":"Moyens de paiement","title":"D'autres façons de donner","methods":[{"icon":"HandHeart","title":"Mobile Money","status":"Coordonnées communiquées sur demande","description":"Orange Money et MTN Mobile Money."},{"icon":"Landmark","title":"Virement bancaire","status":"Coordonnées communiquées sur demande","description":"Pour les dons importants et les partenariats."},{"icon":"Briefcase","title":"Carte bancaire","status":"Bientôt disponible","description":"Utile pour les donateurs de la diaspora."}],"subtitle":"WhatsApp reste le canal le plus rapide. Ces moyens complémentaires sont disponibles ou en cours de mise en place.","background":"surface","footerHref":"mailto:contact@adebes.cm","footerText":"Pour obtenir les coordonnées de paiement, écrivez à","showAmounts":false,"footerLinkLabel":"contact@adebes.cm"}$t$::jsonb),
+  ($t$don$t$, $t$faq$t$, 2, $t${"align":"center","badge":"Questions fréquentes","title":"Vos questions sur les dons","source":"don","subtitle":"","openFirst":false,"background":"default","footerHref":"/benevolat","footerText":"Vous préférez donner de votre temps ?","footerLinkLabel":"Devenez bénévole"}$t$::jsonb),
+  -- benevolat
+  ($t$benevolat$t$, $t$faq$t$, 1, $t${"align":"center","badge":"Questions fréquentes","title":"Avant de vous lancer","source":"benevolat","subtitle":"","openFirst":false,"background":"default","footerHref":"","footerText":"","footerLinkLabel":""}$t$::jsonb)
+) as s(page_slug, block_type, position, content) on s.page_slug = p.slug;
 
 
 -- ===========================================================================

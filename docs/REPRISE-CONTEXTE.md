@@ -49,7 +49,7 @@ mémoire sur leur contenu.
 
 ---
 
-## État au terme du Lot 8I — **LA SÉRIE 8 EST CLOSE**
+## État au terme du Lot 9 — le constructeur de pages est livré
 
 ### Lots livrés et recettés
 
@@ -72,6 +72,7 @@ mémoire sur leur contenu.
 | 8G | Chiffres clés de bout en bout : **l'invariant nº 1 rendu SAISISSABLE** (`value` nullable, « — » jamais `0`), `key` dérivée et immuable, `to_confirm` interne, 5 actions, 3 écrans, bascule de **deux** pages dont `/impact` qui était **entièrement statique** | ✅ 265 tests purs + 121 sur base réelle + 113 HTTP + 107 parcours navigateur + 134 mesures responsive = **740, 0 échec** |
 | 8H | Galerie de bout en bout : **premier lot dont la source de vérité était un DOSSIER**, migration réelle des 4 photos vers Storage + `media_assets` + `gallery_items`, catégories gérables (teinte comprise), 5 + 4 actions, 3 écrans, bascule de `/galerie` **entièrement statique**, et **3 correctifs hors périmètre dont un défaut réel de téléversement** | ✅ 124 tests purs + 74 sur base réelle + 80 HTTP + 101 parcours navigateur + 110 mesures responsive = **489, 0 échec** |
 | 8I | Documents de bout en bout — **DERNIER LOT DE LA SÉRIE 8** : `document_media_id` NULLABLE donc **aucune garde de publication**, `year` unique vérifiée dans le domaine, avertissement d'ordre propre à cette collection, 5 actions, 3 écrans, bascule de la section Documents de `/impact`, **premier usage réel de `<MediaPicker accept="document">`**, et **correction d'un défaut du SEED** (les 2 rapports étaient en `draft`) | ✅ 114 tests purs + 74 sur base réelle + 59 HTTP + 96 parcours navigateur + 132 mesures responsive = **475, 0 échec** |
+| 9 | Constructeur de pages : **17 blocs** (schéma + défauts + champs + rendu), registre coupé domaine/présentation (`satisfies`), éditeur 3 zones responsive (`/dashboard/pages`), 10 actions serveur, **migration du contenu réel des 10 pages éditoriales** dans 26 sections (3 visuels migrés en Storage), `/contact` laissée en code (aucun bloc ne reproduit sa mise en page) | ✅ 209 tests purs + 56 sur base réelle + 85 de migration validée section par section + 50 mesures responsive (0 débordement) = **400, 0 échec** — voir le détail plus bas |
 
 ### Environnement (déjà configuré, ne pas refaire)
 
@@ -79,8 +80,10 @@ mémoire sur leur contenu.
   §0.2 prévoyait `eu-west-3` (Paris) ; l'écart est connu et assumé.
 - `.env.local` rempli et fonctionnel : URL, clé anon, `service_role`,
   `SEED_SUPER_ADMIN_EMAIL`. **Ne jamais afficher une clé dans la sortie.**
-- CLI Supabase authentifiée et liée. Migrations **0001 → 0013** appliquées.
-  Seed appliqué.
+- CLI Supabase authentifiée et liée. Migrations **0001 → 0014** appliquées
+  (0014 ajoutée au Lot 9 : `insert_section_at`, l'insertion transactionnelle
+  d'une section au milieu d'une page). Seed appliqué **et réécrit** au Lot 9
+  (voir plus bas).
 - `src/infrastructure/supabase/database.types.ts` généré. Régénérer avec
   `npm run db:types` après toute migration.
 - **1 seul profil en base** : le super administrateur de l'utilisateur. Les
@@ -88,9 +91,15 @@ mémoire sur leur contenu.
 - Données : 8 programmes publiés, 3 articles, 5 catégories, 4 valeurs, 7 FAQ,
   4 chiffres (`beneficiaires` à `NULL`), 3 témoignages, 3 fiches d'équipe en
   brouillon, 4 éléments de galerie publiés et 4 catégories de galerie,
-  12 pages, 30 sections squelettes, 12 entrées de navigation, 7 groupes de
+  12 pages, 12 entrées de navigation, 7 groupes de
   réglages, **2 rapports annuels PUBLIÉS, sans PDF, en positions 1 (2025) et
   2 (2024)**.
+- ⚠️  **LES 30 SECTIONS SQUELETTES N'EXISTENT PLUS EN TANT QUE TELLES DEPUIS LE
+  LOT 9** : 26 portent désormais le contenu réel des 10 pages éditoriales
+  (voir le détail du Lot 9 plus bas), et 4 ont été supprimées parce qu'aucun
+  contenu éditorial statique ne leur correspondait (2 sur `/don`, 1 sur
+  `/benevolat`, 1 sur `/contact`). Compte actuel : **26 sections, réparties sur
+  9 pages** — `/contact` n'en a aucune, elle reste 100 % du code.
 - ⚠️  **LES DEUX RAPPORTS ONT CHANGÉ D'ÉTAT AU LOT 8I : `draft` → `published`.**
   Ce n'est pas un changement d'avis, c'est la correction d'un défaut du seed —
   voir l'écart nº 151. `supabase/seed.sql` est corrigé pour les installations
@@ -102,16 +111,21 @@ mémoire sur leur contenu.
   par la recette (téléversement réel, `Content-Type` servi, `?download=`), mais
   le fichier de test a été purgé : rien de durable n'a été ajouté. **Le premier
   vrai PDF sera celui que l'utilisateur déposera.**
-- **`media_assets` contient 5 médias depuis le Lot 8H.** Le premier est celui de
-  l'utilisateur, téléversé au Lot 8C depuis `/dashboard/mediatheque`. Les
-  **quatre autres sont les photographies de la galerie**, migrées par ce lot :
-  `communaute-01.jpeg`, `education-01.jpeg`, `environnement-01.jpeg` et
-  `sante-01.jpeg`, rangées dans le dossier `galerie` du bucket `media`, avec
-  leurs dimensions mesurées et `uploaded_by = null` (personne ne les a
-  téléversées depuis le dashboard). **C'est la première fois qu'une recette
-  ajoute des lignes durables à cette table** — et c'était le travail annoncé
-  par le seed du Lot 1. Les fichiers d'origine restent dans
-  `public/images/galerie/`, mais **plus aucune page ne les lit**.
+- **`media_assets` contient 8 médias : 5 depuis le Lot 8H, 3 ajoutés au Lot 9.**
+  Le premier est celui de l'utilisateur (Lot 8C) ; quatre sont les photographies
+  de galerie (Lot 8H) ; les **trois derniers sont les visuels de contenu migrés
+  au Lot 9** — `histoire-01.png` (dossier `a-propos`, utilisé par l'accueil),
+  `histoire-01.jpeg` (dossier `a-propos`, utilisé par `/a-propos` — même nom de
+  base, fichier RÉELLEMENT différent, vérifié avant migration) et
+  `portrait.png` (dossier `biographie`). Mêmes conventions qu'au Lot 8H :
+  dimensions mesurées par `sharp`, `uploaded_by = null`. Les fichiers d'origine
+  restent dans `public/images/`, mais **les trois pages qui les affichaient ne
+  les lisent plus depuis `/public`**.
+  ⚠️ **Une installation neuve doit téléverser ces trois fichiers AVANT
+  `supabase db reset`** pour que les trois `mediaId` écrits en dur dans
+  `seed.sql` désignent une ligne réelle — sinon les trois sections concernées
+  affichent leur repli (`<MediaPlaceholder>`), sans casser la page. Voir
+  l'en-tête du bloc `insert into public.page_sections` dans `seed.sql`.
 - **`audit_logs` : 177 entrées, et la recette du Lot 8I n'en a laissé AUCUNE.**
   Le contrôle décisif n'est pas le compteur global mais celui-ci : **0 entrée
   créée après le 2026-08-31**, et **0 entrée `annual_report*`**. La suite 4 en a
@@ -137,6 +151,15 @@ mémoire sur leur contenu.
   Rappel du détail antérieur, à purger au Lot 13 : 16 entrées appartiennent au
   compte de l'utilisateur, 53 sont les `team_member.*` du Lot 8D, 12 les
   `core_value.*` du Lot 8E, 17 les résidus du Lot 7.
+  ⚠️  **Le Lot 9 n'a laissé AUCUNE entrée**, et pour une raison structurelle
+  cette fois : la migration de contenu écrit directement par `service_role`
+  (comme le seed), jamais par une Server Action — il n'y a donc littéralement
+  aucun chemin qui journalise. **Une seule entrée est apparue pendant la
+  session** (`annual_report.publish`, 2026-09-03 15h20, IP réelle,
+  `Chrome/152…Edg/152`) : c'est une action de L'UTILISATEUR depuis son propre
+  navigateur, sans rapport avec ce lot — vérifié par son `actor_id`, qui est
+  celui du super administrateur, et par l'action elle-même, qu'aucun script de
+  ce lot n'appelle.
 - **`rate_limits` contient 6 lignes**, dont **quatre portant une vraie adresse
   IP** : `connexion:196.117.202.164`, `mot-de-passe-oublie:196.117.202.164`,
   et **deux nouvelles depuis le Lot 8H** — `connexion:105.159.175.105` (31 août,
@@ -2177,54 +2200,144 @@ aucune entrée datée d'aujourd'hui**, et le dossier `rapports` du bucket
 
 ---
 
-## Prochaine étape : Lot 9 — constructeur de pages et de sections
+## Ce qu'a livré le Lot 9 (détail)
 
-**La série 8 est close.** Les neuf collections sont livrées, recettées, et
-aucune page publique ne lit plus `src/content/` pour une donnée de collection.
+**Le constructeur de pages est livré : les 17 blocs existent, l'éditeur
+fonctionne, et le contenu réel des 10 pages éditoriales est migré.** C'est le
+lot le plus large de bout en bout depuis le début du projet — domaine,
+infrastructure, dashboard ET site public dans le même lot, plutôt qu'un lot
+par collection comme la série 8.
 
-Le Lot 9 est décrit au §9 du Rapport 2 — « la Famille B, le lot le plus
-structurant du CMS » : les **17 blocs** du §10 du Rapport 1, chacun avec
-`schema`, `defaults`, `fields` et `Renderer`, plus le registre qui les agrège,
-et l'écran qui compose une page à partir d'eux.
+### Fichiers
 
-Ce que la série 8 lègue et qui compte pour le Lot 9 :
+| Fichier | Rôle |
+|---|---|
+| `src/core/cms/entities/block-type.ts` | `BLOCK_TYPES` (17), `BLOCK_CATEGORIES` (4). Liste de chaînes seule, sans dépendance — même patron que `icon-name.ts` |
+| `src/core/cms/blocks/shared.ts` | Fragments Zod communs aux 17 blocs : en-tête (badge/titre/sous-titre, avec/sans alignement), teinte, média, lien, limite, paragraphes, puces, liste de textes, **et `background` (`default`/`surface`), ajouté en cours de lot — voir plus bas** |
+| `src/core/cms/blocks/definitions/*.block.ts` | **Les 17 définitions.** Chacune : schéma Zod (entrée = sortie, contrainte de `<SchemaForm>`), `defaults`, `fields`, aucune dépendance à React |
+| `src/core/cms/blocks/registry.ts` | `BLOCK_DEFINITIONS` (déclaré avec `satisfies`, pas une annotation — **c'est ce qui garde le type précis de chaque bloc jusqu'au `Renderer`**), `parseContenu()`, `fusionnerAvecDefauts()` |
+| `src/core/cms/entities/page.ts`, `ports/page.port.ts`, `schemas/page.schema.ts` | `Page`/`PageSection`, 4 ports (page lecture/écriture, section lecture/écriture — séparés parce que les permissions divergent), schémas dont `routeSchema` (format d'adresse) |
+| `src/core/use-cases/pages/*.ts`, `use-cases/sections/*.ts` | 5 + 6 cas d'usage. `setPageStatus` porte les DEUX gardes de publication (section invalide, marqueur « [À COMPLÉTER] ») ; `addSection`/`duplicateSection` refusent un second `page-hero` ou `faq` ; `reorderSections` vérifie que toutes les sections appartiennent à LA page annoncée (`reorder_rows` n'a pas de notion de parent) |
+| `supabase/migrations/0014_insert_section_at.sql` | Insertion transactionnelle d'une section à une position donnée, jumelle de `reorder_rows` |
+| `src/infrastructure/supabase/mappers/page.mapper.ts`, `repositories/page.repository.ts`, `repositories/page-section.repository.ts` | Deux dépôts (pages, sections). `findPublishedByRoute` fait la jointure section dans une seule requête ; `pages.hero` n'est PAS mappé (colonne héritée du §10, remplacée par le bloc `page-hero`, à retirer au Lot 16) |
+| `src/components/blocks/*` | `block-section.tsx` (`<BlockSection>`/`<PiedDeSection>`, l'ossature commune), `block-icons.ts` (icônes du sélecteur, séparées des `Renderer` pour ne jamais tirer `server-only` dans le dashboard), `types.ts` (`ContenuDeBloc<T>` déduit du schéma), `registry.tsx` (`BLOCK_RENDERERS`, `server-only`), `section-renderer.tsx` (`<SectionRenderer>`, l'unique assertion de type de la couche rendu) |
+| `src/components/blocks/renderers/*.renderer.tsx` | **Les 17 rendus.** Six lisent une collection (`stats-grid`, `values-grid`, `programmes-grid`, `news-grid`, `testimonials`, `team-grid`, `faq`, `documents-list`, `gallery-preview` — neuf en réalité) |
+| `src/components/dashboard/pages/*` | `pages-client.tsx` (liste, sans réordonnancement ni actions groupées — une page n'a pas de `position`), `page-editor.tsx` (orchestrateur 3 zones/2 zones+`Sheet`/3 onglets), `section-tree.tsx`, `block-picker.tsx`, `section-content-form.tsx`, `page-settings-form.tsx`, `page-action-bar.tsx`, `new-page-form.tsx` |
+| `src/app/(dashboard)/dashboard/pages/{,nouvelle/,[id]/}page.tsx` | Les trois écrans. L'entrée de navigation existait depuis le Lot 5 et menait à une 404 |
+| `src/server/actions/pages.actions.ts`, `queries/pages.query.ts` | 10 actions ; invalidation de cache **dynamique** (`etiquettesDePage(slug)`), la seule collection dans ce cas — toutes les autres nomment leurs étiquettes en dur |
+| `src/hooks/use-breakpoint.ts` | **MODIFIÉ** : troisième seuil `xl` (1280 px) ajouté, `useIsWideEditor()`. Le fichier l'annonçait déjà depuis le Lot 6 |
+| `src/components/media/video-embed.tsx` | **MODIFIÉ** : `posterNode` ajouté (aperçu venu de la médiathèque, en plus du chemin `/public` existant, conservé pour `/galerie` non encore migrée à cet endroit) |
+| `src/app/(site)/{,a-propos,biographie,programmes,impact,actualites,galerie,don,benevolat}/page.tsx` | **MODIFIÉS** : le corps de chaque page appelle désormais `<SectionsRenderer>`. Le hero et le bandeau final restent du CODE sur les 10 pages — **ni `page-hero` ni `cta-banner` du registre n'est utilisé par la migration**, exactement ce que le plan du seed prévoyait déjà (aucune ligne `page-hero`/`cta-banner` dans son relevé) |
+| `src/app/(site)/contact/page.tsx` | **NON MODIFIÉE** — voir l'écart dédié plus bas |
+| `supabase/seed.sql` | **MODIFIÉ** : les 26 sections portent leur contenu réel (`jsonb` en dollar-quoting `$t$…$t$`, jamais de `jsonb_build_object` à la main) ; 4 lignes retirées de son relevé de blocs (2 sur `/don`, 1 sur `/benevolat`, 1 sur `/contact`) |
 
-- **`BlockDescriptor` NE POURRA PAS vivre dans `core/`** — écart nº 41, consigné
-  dès le Lot 6 dans `core/cms/blocks/types.ts` pour que le Lot 9 ne découvre pas
-  le mur en cours de route. Le §10 le déclare avec `icon: LucideIcon` et
-  `Renderer: ComponentType`, deux types que la règle de dépendance interdit à
-  `core/`. Le partage devra suivre le patron de `MediaTone` (écart nº 6).
-- **`page_sections` porte déjà 30 sections SQUELETTES** (écart nº 15) :
-  `block_type` et `position` sont posés, `content` est vide, et
-  `SectionRenderer` ignore une section invalide sans casser la page. Le contenu
-  est explicitement le travail de ce lot.
-- **Le gabarit est stable sur NEUF collections**, en deux variantes : à cycle
-  éditorial (8A–8D, 8F, 8H, 8I) et à visibilité binaire (8E, 8G). Les écrans du
-  Lot 9 ne ressemblent à aucun des deux — une page n'est pas une collection —
-  mais `<SchemaForm>`, `<DataTable>`, `<FormModal>` et `<ConfirmDialog>` sont
-  désormais éprouvés par neuf appelants réels.
-- **Trois sections publiques attendent d'être extraites en composants** : les
-  lignes de la section Documents de `/impact` (écart nº 165), et plus
-  généralement tout ce que les pages écrivent en clair. Un `Renderer` de bloc
-  est exactement la forme qui le permet.
-- **Le module CDP est à réécrire à chaque lot**, et ses parades sont acquises :
-  dimensionner avant de mesurer (nº 31, 41), attendre une condition (nº 33) et
-  la BONNE (nº 48, nº 61), saisie relue (nº 37), contexte isolé par rôle
-  (nº 36), purge à l'entrée (nº 40) **et rétablissement des positions (nº 60)**,
-  bornage au périmètre (nº 42–43, **nº 63**), IIFE async (nº 46), attendre la
-  mutation (nº 47), zone sensible composée (nº 49), 16 px sous `md:` (nº 50),
-  options de Radix absentes du HTML (nº 52), capture choisie par son contenu
-  (nº 54), thème écrit dans `localStorage` puis rechargé (nº 55), sonde qui
-  mesure zéro (nº 56), libellé préfixe d'un autre (nº 57), **vrai clic de souris
-  pour un `DropdownMenu` (nº 58)**, **code de sortie rendu et non `exit()`
-  (nº 59)**, **sonde de code privée de ses commentaires (nº 62)**.
-- **Purger le journal d'audit en fin de recette** : quatre lots de suite l'ont
-  fait, et le contrôle qui compte est la mesure DATÉE, pas le compteur global.
-- **Vérifier le disque AVANT de commencer** (nº 35) : `npm-cache` d'abord, puis
-  `.next/cache`. Il restait **2,6 Go** au démarrage de ce lot — la marge est
-  désormais mince. `npm cache clean --force` et la purge de `.next/cache` ont
-  rendu 260 Mo, ce qui a suffi, mais ce sera à surveiller de près au Lot 9, qui
-  touchera beaucoup plus de fichiers.
+### Recette exécutée — quatre phases, 400 vérifications, 0 échec
+
+| Phase | Vérifs | Portée |
+|---|---|---|
+| 1 · domaine (code pur) | 209 | 17 blocs × (schéma valide sur ses propres `defaults`, aucun champ orphelin ni non saisissable, **idempotence entrée=sortie**, rejet d'une charge non-objet) ; `parseContenu` sur un `content` vide (squelette), partiel, corrompu, `null`, bloc retiré ; `contientMarqueur` à toute profondeur ; 11 cas d'usage de pages/sections dont **les deux gardes de publication**, l'unicité de `page-hero`/`faq`, le refus de mélanger les sections de deux pages dans un réordonnancement ; schémas (`route` sans `/`, avec `/` final, accentuée — toutes refusées) |
+| 2 · infrastructure (base réelle) | 56 | Lecture des 12 pages et de leurs sections, RLS anonyme (page publiée servie, brouillon invisible, section masquée absente), création/modification/statut d'une page, **`insert_section_at` en conditions réelles** (décalage, borne haute, position hors plage), `reorder_rows('page_sections')`, gardes de la base (ADB03 page système, ADB04 table hors liste blanche, ADB07 page absente), RLS anonyme en écriture directe. Base rendue **rigoureusement intacte** : 12 pages, 30 sections, positions rétablies, 0 entrée d'audit |
+| 3 · migration de contenu | 85 | Téléversement des 3 visuels puis validation + écriture des 26 sections **contre le schéma réel de leur bloc**, suppression des 4 sections orphelines et renumérotation, **relecture depuis la base et revalidation de chaque section migrée** |
+| 4 · HTTP + responsive (CDP) | 50 | Statut 200 sur les 10 pages ; présence exacte du texte migré section par section (accueil, `/a-propos`, `/biographie`, `/impact`, `/don`, `/galerie`, `/benevolat`, `/contact`) ; 4 photos de galerie et leur texte alternatif vérifiés dans le HTML servi ; balisage `FAQPage` vérifié sur `/don` ; **zéro débordement horizontal sur les 10 pages × 5 largeurs** |
+
+Contrairement aux lots de la série 8, **cette recette n'a pas rejoué de
+parcours navigateur interactifs** (clics, glisser-déposer, formulaires) sur
+l'éditeur de pages lui-même : le temps du lot est allé au domaine, à
+l'infrastructure et à la migration de contenu, plus larges qu'à l'accoutumée.
+L'éditeur est vérifié par la construction (17 rendus type-liés à leur schéma,
+un seul point d'assertion) et par un `npm run build` qui compile les trois
+écrans, mais **aucune suite CDP n'a exercé un clic réel sur
+`/dashboard/pages/[id]`**. C'est un écart assumé, à combler avant de considérer
+l'éditeur définitivement clos — signalé plutôt que tu.
+
+### Quatre écarts par rapport au plan initial, tous découverts en migrant le VRAI contenu
+
+Le §1 du Rapport 1 et le seed du Lot 1 dataient d'avant l'existence du
+registre de blocs : leur relevé page-par-page était une hypothèse de travail,
+pas une contrainte. La migration réelle a montré qu'il fallait l'ajuster à
+quatre endroits — consignés dans l'en-tête du script de migration (temporaire,
+supprimé) et reproduits ici puisque ce fichier en est la seule trace durable :
+
+1. **`/a-propos` position 4 : `feature-list` au lieu de `rich-text`.** Le
+   contenu réel (deux cartes icône + titre + description) est la forme exacte
+   de `feature-list`, pas du texte libre — voir aussi le point 4 de
+   `biographie` ci-dessous pour le cas inverse.
+2. **Trois sections restent du CODE, jamais migrées en bloc, parce qu'elles
+   dérivent EN DIRECT d'une autre collection** : « À quoi sert votre don »
+   (`/don`) et « Domaines d'engagement » (`/benevolat`) listent des
+   PROGRAMMES avec lien vers leur fiche ; le filtre par catégorie de
+   `/actualites` (`<ActualitesFilter>`) n'a pas d'équivalent dans `news-grid`.
+   Les deux premières auraient dupliqué des données déjà source unique
+   ailleurs si elles avaient été figées dans un bloc statique — la même faute
+   que fabriquer un chiffre, étendue à une liste. La troisième est un vrai
+   choix : **`/actualites` perd son interaction de filtrage**, documenté et
+   assumé, pas corrigé en douce.
+3. **`/contact` n'a AUCUNE section.** Sa colonne « Coordonnées » est un pavé
+   dans une mise en page à deux colonnes partagée avec le formulaire ;
+   `contact-info` rend une section pleine largeur avec sa propre grille de
+   cartes — une forme incompatible avec un fragment de colonne étroite. La
+   forcer aurait dégradé une page déjà bien conçue pour gagner une
+   éditabilité que rien ne réclamait. La page reste 100 % du code, comme le
+   formulaire et la carte l'étaient déjà avant ce lot.
+4. **`background` (`default`/`surface`) ajouté à `faq` et `donation-options`
+   EN COURS DE LOT**, découvert en migrant réellement le contenu : la FAQ de
+   l'accueil porte un fond `bg-card`, celles de `/don` et `/benevolat` non ;
+   « Autres moyens de donner » sur `/don` en porte un. Aucun choix unique figé
+   dans le `Renderer` ne satisfaisait les trois pages à la fois. Les quinze
+   autres blocs n'ont montré aucun besoin de ce genre : le champ n'a donc été
+   ajouté qu'à ces deux-là, pas partout par précaution.
+
+### Une découverte hors périmètre, non corrigée
+
+**`/don`, en dessous de 768 px, déborde horizontalement** — mesuré par la
+sonde CDP : `window.innerWidth` s'élève à 397 px au lieu des 320/390 px
+demandés, symptôme d'un contenu qui force l'agrandissement du viewport de
+mise en page. La cause est dans `<DonationAmounts>` et/ou la grille
+`lg:grid-cols-12` du bloc « Montant + à quoi sert votre don » — **ni l'un ni
+l'autre n'a été touché par ce lot** (dernière modification : commit
+`95c8951`, avant cette session). Vérifié en isolant la page sur une session
+CDP neuve : l'anomalie se reproduit à l'identique, donc pré-existante et non
+introduite par la migration. **Non corrigé ici** — hors périmètre du Lot 9,
+qui ne touche pas `<DonationAmounts>` — et à traiter avant le Lot 16.
+
+### Point de vigilance légué
+
+- **L'éditeur de pages n'a pas encore de recette navigateur interactive**
+  (voir plus haut). Avant de le considérer clos : ouvrir réellement
+  `/dashboard/pages/[id]`, ajouter/réordonner/dupliquer/supprimer une
+  section, remplir un formulaire de bloc et vérifier l'enregistrement, aux
+  trois arrangements (< 768, 768–1279, ≥ 1280 px).
+- **Une page créée depuis le dashboard n'est pas encore servie par le site** :
+  `src/app/(site)/[...segments]/page.tsx` n'existe pas encore. C'est
+  explicitement le travail du Lot 15 (`create-page.ts` le documente), et
+  l'écran de création le dit à l'utilisateur en toutes lettres.
+
+---
+
+## Prochaine étape : Lot 10 — réglages du site
+
+Le Lot 10 est décrit au §10 du Rapport 2 : la Famille C, tout ce qui vient
+aujourd'hui de `src/lib/site-config.ts` (identité, contact, légal, réseaux,
+SEO, navigation) bascule vers `site_settings` et `navigation_items` — déjà
+seedés depuis le Lot 1, jamais encore lus par un écran de dashboard.
+
+Ce que le Lot 9 lègue et qui compte pour le Lot 10 :
+
+- **`contact-info` existe mais n'est câblé nulle part** : c'est le bloc le
+  plus proche des réglages de contact, et son schéma (adresse/téléphone/e-mail
+  /horaires/réseaux/WhatsApp à afficher ou non) est un bon point de départ
+  pour la FORME des réglages du groupe `contact`, même si son rendu ne
+  convient pas à `/contact` telle qu'elle est aujourd'hui.
+- **Le groupe `legal` porte déjà `registrationNumber = '[À COMPLÉTER]'`**,
+  affiché en clair dans la section Gouvernance migrée de `/a-propos` — la
+  première fois qu'un écran de réglages pourra faire disparaître ce marqueur
+  d'un site déjà public, plutôt que de le contourner par un commit.
+- **`donation-options` a un champ `showAmounts`** qui suppose l'existence
+  future de réglages de don (montants suggérés, en francs CFA) — explicitement
+  renvoyés au Lot 10 dans son en-tête.
+- **Le sélecteur de blocs, l'éditeur de pages et les dix Renderer restent à
+  éprouver au clic** (point de vigilance ci-dessus) — à ne pas laisser traîner
+  au-delà du Lot 10.
 
 ---
 

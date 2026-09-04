@@ -1,23 +1,16 @@
-import { Building2, CreditCard, Mail, Smartphone } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { SectionsRenderer } from "@/components/blocks/section-renderer";
 import { DonationAmounts } from "@/components/don/donation-amounts";
 import { Container } from "@/components/layout/container";
 import { PageHero } from "@/components/layout/page-hero";
-import {
-  JsonLd,
-  breadcrumbJsonLd,
-  faqJsonLd,
-} from "@/components/seo/json-ld";
+import { JsonLd, breadcrumbJsonLd } from "@/components/seo/json-ld";
 import { Button } from "@/components/ui/button";
-import { FAQAccordion } from "@/components/ui-ext/faq-accordion";
+import { ContentIcon } from "@/components/ui-ext/content-icon";
 import { Reveal } from "@/components/ui-ext/reveal";
 import { SectionHeading } from "@/components/ui-ext/section-heading";
-import { ContentIcon } from "@/components/ui-ext/content-icon";
-import { texteReponse } from "@/core/cms/entities/faq-item";
-import { contact } from "@/lib/site-config";
-import { getFaqParSujet } from "@/server/queries/faq.query";
+import { getPagePublique } from "@/server/queries/pages.query";
 import { getProgrammesPublies } from "@/server/queries/programmes.query";
 
 export const metadata: Metadata = {
@@ -34,56 +27,37 @@ export const metadata: Metadata = {
 };
 
 /**
- * Moyens de paiement.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *  /don — bascule sur les sections (§9.5)
+ * ═══════════════════════════════════════════════════════════════════════════
  *
- * L'audit relève (§4.3) qu'aucun moyen de paiement local n'était proposé alors
- * que Mobile Money est le plus utilisé au Cameroun. Les emplacements sont donc
- * créés dès maintenant : ils affichent « Bientôt disponible » plutôt que de
- * rester absents, pour que l'intégration ne demande qu'un remplacement de
- * contenu.
- */
-const moyensPaiement = [
-  {
-    icon: Smartphone,
-    title: "Mobile Money",
-    description: "Orange Money et MTN Mobile Money.",
-    status: "Coordonnées communiquées sur demande",
-  },
-  {
-    icon: Building2,
-    title: "Virement bancaire",
-    description: "Pour les dons importants et les partenariats.",
-    status: "Coordonnées communiquées sur demande",
-  },
-  {
-    icon: CreditCard,
-    title: "Carte bancaire",
-    description: "Utile pour les donateurs de la diaspora.",
-    status: "Bientôt disponible",
-  },
-] as const;
-
-/**
- * ⚠️  `force-dynamic` — TRANSITOIRE, À RETIRER AU LOT 15.
+ * ---------------------------------------------------------------------------
+ * ⚠️  UNE SEULE DES TROIS SECTIONS DU CORPS PASSE PAR LE CMS
+ * ---------------------------------------------------------------------------
+ * « À quoi sert votre don » liste des PROGRAMMES lus en direct et pointe vers
+ * leurs pages : c'est une donnée DÉRIVÉE de la collection des programmes, pas
+ * du contenu éditorial propre à cette page. La figer dans un bloc `feature-list`
+ * aurait dupliqué des titres et des résumés déjà source unique ailleurs — la
+ * même faute que fabriquer un chiffre, étendue à une liste. Elle reste donc du
+ * CODE, comme le sélecteur de montants (`<DonationAmounts>`) juste au-dessus.
  *
- * La section « À quoi sert votre don » liste des programmes lus en base et
- * pointe vers leurs pages. Figée au build, elle proposerait un lien vers un
- * programme dépublié — c'est-à-dire un lien mort, ce que l'invariant nº 2
- * interdit. Voir l'en-tête de `src/server/queries/programmes.query.ts`.
+ * « D'autres façons de donner » EST du contenu éditorial statique (trois
+ * moyens de paiement, une mention d'état chacun) : c'est la section migrée,
+ * dans le bloc `donation-options`, avec `showAmounts: false` — le sélecteur de
+ * montants reste affiché par le code, juste au-dessus ; l'activer aussi dans
+ * le bloc l'aurait dupliqué.
+ *
+ * La FAQ des dons est la seconde section migrée (`faq`, `source: "don"`) — son
+ * balisage `FAQPage` est désormais émis par `<FaqRenderer>`, plus par cette
+ * page.
  */
 export const dynamic = "force-dynamic";
 
 export default async function DonPage() {
-  const programmes = await getProgrammesPublies();
-
-  /*
-    Les questions du sujet « Dons » viennent de la base au Lot 8F.
-
-    Le filtrage par sujet est fait par le dépôt, pas ici : le sujet DÉCIDE de la
-    page, et cette page affiche la FAQ des dons — pas une sous-partie d'une
-    liste générale.
-  */
-  const faqDon = await getFaqParSujet("don");
+  const [programmes, page] = await Promise.all([
+    getProgrammesPublies(),
+    getPagePublique("/don"),
+  ]);
 
   return (
     <>
@@ -93,22 +67,6 @@ export default async function DonPage() {
           { label: "Faire un don", href: "/don" },
         ])}
       />
-
-      {/*
-        ⚠️  `texteReponse` compose le paragraphe ET les puces — voir l'entité
-        `FaqItem`. Et aucun balisage n'est émis si la liste est vide : un
-        `FAQPage` sans `mainEntity` est une déclaration fausse.
-      */}
-      {faqDon.length > 0 ? (
-        <JsonLd
-          data={faqJsonLd(
-            faqDon.map((item) => ({
-              question: item.question,
-              answer: texteReponse(item),
-            })),
-          )}
-        />
-      ) : null}
 
       <PageHero
         eyebrow="Faire un don"
@@ -183,104 +141,10 @@ export default async function DonPage() {
         </Container>
       </section>
 
-      {/* --- Autres moyens --- */}
-      <section className="bg-card py-14 lg:py-20">
-        <Container size="wide">
-          <Reveal>
-            <SectionHeading
-              badge="Moyens de paiement"
-              title="D'autres façons de donner"
-              subtitle="WhatsApp reste le canal le plus rapide. Ces moyens complémentaires sont disponibles ou en cours de mise en place."
-              align="center"
-            />
-          </Reveal>
-
-          <ul className="mt-10 grid gap-4 md:grid-cols-3">
-            {moyensPaiement.map((moyen, index) => {
-              const Icon = moyen.icon;
-              return (
-                <Reveal as="li" key={moyen.title} delay={index * 0.06}>
-                  <div className="flex h-full flex-col gap-3 rounded-2xl border border-border bg-background p-5">
-                    <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
-                      <Icon className="size-5" aria-hidden="true" />
-                    </span>
-                    <h3 className="font-heading text-base font-semibold text-foreground">
-                      {moyen.title}
-                    </h3>
-                    <p className="text-sm leading-relaxed text-muted-foreground">
-                      {moyen.description}
-                    </p>
-                    <span className="mt-auto w-fit rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
-                      {moyen.status}
-                    </span>
-                  </div>
-                </Reveal>
-              );
-            })}
-          </ul>
-
-          <Reveal delay={0.15}>
-            <p className="mt-8 text-center text-sm text-muted-foreground">
-              Pour obtenir les coordonnées de paiement, écrivez à{" "}
-              <a
-                href={`mailto:${contact.email}`}
-                className="inline-flex items-center gap-1.5 font-medium text-primary underline-offset-4 hover:underline"
-              >
-                <Mail className="size-3.5" aria-hidden="true" />
-                {contact.email}
-              </a>
-            </p>
-          </Reveal>
-        </Container>
-      </section>
-
-      {/*
-        --- FAQ dons ---
-
-        La section entière disparaît s'il n'y a aucune question publiée sur ce
-        sujet. Même règle que sur l'accueil, et pour la même raison : un titre
-        « Vos questions sur les dons » suivi du vide annoncerait un contenu
-        manquant, et le balisage déclarerait une FAQ sans question.
-
-        ⚠️  `id="faq"` : l'ancre visée par « Voir sur le site » depuis la fiche
-        du dashboard.
-      */}
-      {faqDon.length > 0 ? (
-        <section id="faq" className="py-14 lg:py-20">
-          <Container size="narrow">
-            <Reveal>
-              <SectionHeading
-                badge="Questions fréquentes"
-                title="Vos questions sur les dons"
-                align="center"
-              />
-            </Reveal>
-
-            <Reveal delay={0.1}>
-              <FAQAccordion items={faqDon} className="mt-8" />
-            </Reveal>
-
-            <Reveal delay={0.15}>
-              <p className="mt-8 text-center text-sm text-muted-foreground">
-                Vous préférez donner de votre temps ?{" "}
-                {/*
-                  ⚠️  `inline-flex min-h-11` — même correctif que sur l'accueil,
-                  et même motif : mesuré à 123 × 17 px par la recette de ce lot.
-                  Voir l'écart nº 112 (Lot 8E) et le commentaire jumeau dans
-                  `src/app/(site)/page.tsx`.
-                */}
-                <Link
-                  href="/benevolat"
-                  className="inline-flex min-h-11 items-center px-1 font-medium text-primary underline-offset-4 hover:underline"
-                >
-                  Devenez bénévole
-                </Link>
-                .
-              </p>
-            </Reveal>
-          </Container>
-        </section>
-      ) : null}
+      <SectionsRenderer
+        sections={page?.sections ?? []}
+        page={page ?? { slug: "don", route: "/don", title: "Faire un don" }}
+      />
     </>
   );
 }

@@ -1,4 +1,5 @@
 import { Clapperboard } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -33,21 +34,34 @@ export function VideoEmbed({
   title,
   poster,
   posterAlt,
+  posterNode: posterFourni,
   tone = "navy",
   className,
 }: {
   source: VideoSource;
   title: string;
-  /** Chemin de l'image d'aperçu dans /public. */
-  poster: string;
-  posterAlt: string;
+  /** Chemin de l'image d'aperçu dans /public. Ignoré si `posterNode` est fourni. */
+  poster?: string;
+  posterAlt?: string;
+  /**
+   * ✚ AJOUTÉ AU LOT 9 — l'aperçu venu de la MÉDIATHÈQUE.
+   *
+   * Jumeau de l'`imageNode` de `<PageHero>`, et pour la même raison : le bloc
+   * « Vidéo » du registre porte un `posterMediaId`, pas un chemin dans
+   * `/public`. Sans cette échappatoire, le rendu du bloc aurait dû recomposer
+   * à la main tout le corps de ce composant — y compris la mention « Vidéo à
+   * venir », qui aurait alors existé en deux exemplaires libres de diverger.
+   *
+   * `poster` reste accepté pour `/galerie`, qui n'est pas encore migrée.
+   */
+  posterNode?: ReactNode;
   tone?: MediaTone;
   className?: string;
 }) {
-  const posterNode = (
+  const posterNode = posterFourni ?? (
     <MediaImage
-      src={poster}
-      alt={posterAlt}
+      src={poster ?? ""}
+      alt={posterAlt ?? ""}
       fill
       kind="video"
       tone={tone}

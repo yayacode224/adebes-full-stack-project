@@ -60,16 +60,29 @@ import { useSyncExternalStore } from "react";
  */
 
 /**
- * Les deux seuils lisibles en JavaScript, aux valeurs Tailwind par défaut.
+ * Les trois seuils lisibles en JavaScript, aux valeurs Tailwind par défaut.
  *
  * Aucun point de rupture personnalisé n'est introduit : le §12 l'interdit
  * explicitement (« sort du contrat et devient invisible à la relecture »).
+ *
+ * ⚠️  `xl` REJOINT LA LISTE AU LOT 9, ET LE FICHIER L'ANNONÇAIT DÉJÀ :
+ * « le §12 lui-même désigne 768, 1024 ET 1280 comme les trois seuils qui
+ * portent une décision de structure ». L'éditeur de pages (§9.3) est le
+ * premier écran à en avoir besoin : sous 1280 px, les réglages de la page
+ * vivent dans un `Sheet` ; au-delà, dans une troisième colonne inline. Les
+ * monter TOUS LES DEUX à la fois — l'un caché en CSS — ferait coexister deux
+ * formulaires indépendants sur la même donnée, et la saisie de l'un
+ * disparaîtrait sans préavis si la fenêtre change de largeur pendant la
+ * frappe. C'est exactement le risque que `<FormModal>` évite déjà entre
+ * `Dialog` et `Sheet` ; l'éditeur de pages l'évite de la même façon.
  */
 const REQUETES = {
   /** `md:` — le tableau redevient un tableau. */
   md: "(min-width: 768px)",
   /** `lg:` — la barre latérale devient persistante, la modale devient `Dialog`. */
   lg: "(min-width: 1024px)",
+  /** `xl:` — l'éditeur de pages passe de deux zones + `Sheet` à trois zones. */
+  xl: "(min-width: 1280px)",
 } as const;
 
 type Seuil = keyof typeof REQUETES;
@@ -152,4 +165,9 @@ export function useIsDesktop(): boolean {
 /** `true` à partir de 768 px — `<DataTable>` rend alors un vrai tableau. */
 export function useIsTableViewport(): boolean {
   return useMinWidth("md");
+}
+
+/** `true` à partir de 1280 px — `<PageEditor>` rend alors trois zones inline. */
+export function useIsWideEditor(): boolean {
+  return useMinWidth("xl");
 }

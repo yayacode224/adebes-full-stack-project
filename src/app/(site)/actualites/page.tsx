@@ -1,24 +1,27 @@
 import type { Metadata } from "next";
 
-import { ActualitesFilter } from "@/components/actualites/actualites-filter";
-import { NewsCard } from "@/components/cards/news-card";
-import { Container } from "@/components/layout/container";
+import { SectionsRenderer } from "@/components/blocks/section-renderer";
 import { PageHero } from "@/components/layout/page-hero";
 import { JsonLd, breadcrumbJsonLd } from "@/components/seo/json-ld";
 import { CTABanner } from "@/components/ui-ext/cta-banner";
-import {
-  getArticlesPublies,
-  getCategoriesParId,
-} from "@/server/queries/articles.query";
-import { resoudreMedias } from "@/server/queries/media.query";
+import { getPagePublique } from "@/server/queries/pages.query";
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
- *  /actualites — bascule sur la base (§8B)
+ *  /actualites — bascule sur la base (§8B), puis sur les sections (§9.5)
  * ═══════════════════════════════════════════════════════════════════════════
  *
- * La page lit `src/server/queries/articles.query.ts` et n'importe plus
- * `src/content/actualites.ts`.
+ * ---------------------------------------------------------------------------
+ * ⚠️  LA GRILLE EST DÉSORMAIS UNE SECTION, ET ELLE PERD SON FILTRE
+ * ---------------------------------------------------------------------------
+ * `getArticlesPublies()` est appelé par `<NewsGridRenderer>`, pas ici — la
+ * DONNÉE reste fidèle (mêmes articles, même tri du plus récent au plus
+ * ancien, mêmes dates programmées respectées). Ce qui disparaît, c'est
+ * l'INTERACTION : `<ActualitesFilter>` filtrait par catégorie, et le bloc
+ * générique `news-grid` du §10 du Rapport 1 n'a pas d'équivalent — aucun bloc
+ * de la v1 ne porte de `showFilters` pour les actualités, contrairement à
+ * `gallery-preview`. Écart consigné, pas corrigé en douce : voir le rapport
+ * final du Lot 9 pour l'arbitrage complet.
  *
  * ---------------------------------------------------------------------------
  * ⚠️  `force-dynamic` — TRANSITOIRE, À RETIRER AU LOT 15
@@ -49,27 +52,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ActualitesPage() {
-  const articles = await getArticlesPublies();
-  const categories = await getCategoriesParId();
-  const medias = await resoudreMedias(articles.map((article) => article.coverMediaId));
-
-  /**
-   * Seules les catégories réellement représentées sont proposées au filtre.
-   *
-   * Comportement conservé du site actuel, et il compte davantage maintenant que
-   * les catégories sont gérables : un bouton « Environnement » qui ne renvoie
-   * jamais aucun article ferait douter du filtre, pas du contenu.
-   *
-   * L'ordre est celui des catégories en base — celui que l'utilisateur règle
-   * dans la modale du dashboard — et non celui d'apparition des articles.
-   */
-  const libelles = [...categories.values()].map((categorie) => categorie.label);
-  const categoriesUtilisees = libelles.filter((label) =>
-    articles.some(
-      (article) =>
-        article.categoryId && categories.get(article.categoryId)?.label === label,
-    ),
-  );
+  const page = await getPagePublique("/actualites");
 
   return (
     <>
@@ -89,43 +72,10 @@ export default async function ActualitesPage() {
         tone="blue"
       />
 
-      <section className="py-14 lg:py-20">
-        <Container size="wide">
-          {articles.length > 0 ? (
-            <ActualitesFilter
-              categories={categoriesUtilisees}
-              articles={articles.map((article, index) => {
-                const categorie = article.categoryId
-                  ? categories.get(article.categoryId)
-                  : undefined;
-
-                return {
-                  id: article.slug,
-                  category: categorie?.label ?? null,
-                  node: (
-                    <NewsCard
-                      article={article}
-                      categorie={categorie?.label}
-                      cover={
-                        article.coverMediaId
-                          ? medias.get(article.coverMediaId)
-                          : null
-                      }
-                      // Les trois premières cartes sont visibles d'emblée :
-                      // leur image ne doit pas être différée.
-                      priority={index < 3}
-                    />
-                  ),
-                };
-              })}
-            />
-          ) : (
-            <p className="rounded-2xl border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
-              Aucune actualité publiée pour le moment. Revenez bientôt.
-            </p>
-          )}
-        </Container>
-      </section>
+      <SectionsRenderer
+        sections={page?.sections ?? []}
+        page={page ?? { slug: "actualites", route: "/actualites", title: "Actualités" }}
+      />
 
       <CTABanner
         title="Vous voulez être tenu au courant ?"
