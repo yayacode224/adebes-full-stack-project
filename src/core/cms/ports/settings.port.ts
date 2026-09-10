@@ -5,6 +5,7 @@ import type {
   SeoSettings,
   SocialsSettings,
 } from "../entities/site-settings";
+import type { ThemeSettings } from "../entities/theme-settings";
 
 /**
  * Ports des réglages du site — §10 du Rapport 2.
@@ -22,10 +23,10 @@ import type {
  * auditable d'un coup d'œil. Même principe ici : `getIdentity()` se lit sans
  * remonter une signature générique.
  *
- * `theme` et `features` n'ont AUCUNE méthode : ce lot ne les gère pas
- * (`theme` est le Lot 11 ; `features` est hors périmètre). Ne pas les ajouter
- * « pour la complétude » — une méthode sans appelant est une méthode non
- * testée.
+ * `theme` a rejoint la liste au Lot 11 (`getTheme` / `updateTheme`). Reste
+ * `features`, sans aucune méthode : hors périmètre, ligne vide (`{}`) depuis le
+ * seed. Ne pas l'ajouter « pour la complétude » — une méthode sans appelant est
+ * une méthode non testée.
  */
 export interface SettingsReadPort {
   getIdentity(): Promise<IdentitySettings>;
@@ -33,6 +34,7 @@ export interface SettingsReadPort {
   getLegal(): Promise<LegalSettings>;
   getSocials(): Promise<SocialsSettings>;
   getSeo(): Promise<SeoSettings>;
+  getTheme(): Promise<ThemeSettings>;
 }
 
 /**
@@ -58,6 +60,7 @@ export interface SettingsWritePort {
     updatedBy: string | null,
   ): Promise<SocialsSettings>;
   updateSeo(input: SeoSettings, updatedBy: string | null): Promise<SeoSettings>;
+  updateTheme(input: ThemeSettings, updatedBy: string | null): Promise<ThemeSettings>;
 }
 
 /**

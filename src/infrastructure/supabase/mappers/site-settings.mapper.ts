@@ -7,11 +7,16 @@ import type {
   SeoSettings,
   SocialsSettings,
 } from "@/core/cms/entities/site-settings";
+import {
+  withThemeDefaults,
+  type ThemeSettings,
+} from "@/core/cms/entities/theme-settings";
 import { contactSettingsSchema } from "@/core/cms/schemas/settings/contact.schema";
 import { identitySettingsSchema } from "@/core/cms/schemas/settings/identity.schema";
 import { legalSettingsSchema } from "@/core/cms/schemas/settings/legal.schema";
 import { seoSettingsSchema } from "@/core/cms/schemas/settings/seo.schema";
 import { socialsSettingsSchema } from "@/core/cms/schemas/settings/socials.schema";
+import { themeSettingsSchema } from "@/core/cms/schemas/settings/theme.schema";
 import { errors } from "@/core/shared/errors";
 
 import type { Json } from "../database.types";
@@ -74,6 +79,21 @@ export function toSeoSettings(valeur: Json): SeoSettings {
 }
 
 /**
+ * `theme` est le seul groupe dont la ligne du seed est `{}` : les valeurs
+ * d'origine (`THEME_DEFAULTS`, copie exacte de `globals.css`) sont donc
+ * fusionnées AVANT de rejouer le schéma, sinon un document vide serait rejeté.
+ * Après le premier enregistrement, le document est complet et la fusion est
+ * neutre.
+ */
+export function toThemeSettings(valeur: Json): ThemeSettings {
+  return parseGroupe(
+    themeSettingsSchema,
+    withThemeDefaults(valeur) as unknown as Json,
+    "theme",
+  );
+}
+
+/**
  * Domaine → JSONB, à l'écriture.
  *
  * Aucune conversion de forme : les cinq types de domaine de ce lot ne sont
@@ -85,7 +105,13 @@ export function toSeoSettings(valeur: Json): SeoSettings {
  * schéma d'écriture dans `createAction`, avant que ce mapeur ne soit atteint.
  */
 export function toSettingsValue(
-  input: IdentitySettings | ContactSettings | LegalSettings | SocialsSettings | SeoSettings,
+  input:
+    | IdentitySettings
+    | ContactSettings
+    | LegalSettings
+    | SocialsSettings
+    | SeoSettings
+    | ThemeSettings,
 ): Json {
   return input as unknown as Json;
 }

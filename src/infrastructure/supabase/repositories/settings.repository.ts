@@ -8,6 +8,7 @@ import type {
   SettingsGroup,
   SocialsSettings,
 } from "@/core/cms/entities/site-settings";
+import type { ThemeSettings } from "@/core/cms/entities/theme-settings";
 import type {
   SettingsReadPort,
   SettingsWritePort,
@@ -23,6 +24,7 @@ import {
   toSeoSettings,
   toSettingsValue,
   toSocialsSettings,
+  toThemeSettings,
 } from "../mappers/site-settings.mapper";
 
 /**
@@ -66,6 +68,10 @@ export class SupabaseSettingsRepository implements SettingsReadPort, SettingsWri
 
   async getSeo(): Promise<SeoSettings> {
     return toSeoSettings(await this.lireGroupe("seo"));
+  }
+
+  async getTheme(): Promise<ThemeSettings> {
+    return toThemeSettings(await this.lireGroupe("theme"));
   }
 
   private async lireGroupe(groupe: SettingsGroup) {
@@ -120,9 +126,22 @@ export class SupabaseSettingsRepository implements SettingsReadPort, SettingsWri
     return toSeoSettings(await this.ecrireGroupe("seo", input, updatedBy));
   }
 
+  async updateTheme(
+    input: ThemeSettings,
+    updatedBy: string | null,
+  ): Promise<ThemeSettings> {
+    return toThemeSettings(await this.ecrireGroupe("theme", input, updatedBy));
+  }
+
   private async ecrireGroupe(
     groupe: SettingsGroup,
-    input: IdentitySettings | ContactSettings | LegalSettings | SocialsSettings | SeoSettings,
+    input:
+      | IdentitySettings
+      | ContactSettings
+      | LegalSettings
+      | SocialsSettings
+      | SeoSettings
+      | ThemeSettings,
     updatedBy: string | null,
   ) {
     const { data, error } = await this.supabase

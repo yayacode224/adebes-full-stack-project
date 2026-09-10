@@ -7,16 +7,19 @@ import type {
   SeoSettings,
   SocialsSettings,
 } from "@/core/cms/entities/site-settings";
+import type { ThemeSettings } from "@/core/cms/entities/theme-settings";
 import { contactSettingsSchema } from "@/core/cms/schemas/settings/contact.schema";
 import { identitySettingsSchema } from "@/core/cms/schemas/settings/identity.schema";
 import { legalSettingsSchema } from "@/core/cms/schemas/settings/legal.schema";
 import { seoSettingsSchema } from "@/core/cms/schemas/settings/seo.schema";
 import { socialsSettingsSchema } from "@/core/cms/schemas/settings/socials.schema";
+import { themeSettingsSchema } from "@/core/cms/schemas/settings/theme.schema";
 import { updateContactSettings } from "@/core/use-cases/settings/update-contact-settings";
 import { updateIdentitySettings } from "@/core/use-cases/settings/update-identity-settings";
 import { updateLegalSettings } from "@/core/use-cases/settings/update-legal-settings";
 import { updateSeoSettings } from "@/core/use-cases/settings/update-seo-settings";
 import { updateSocialsSettings } from "@/core/use-cases/settings/update-socials-settings";
+import { updateThemeSettings } from "@/core/use-cases/settings/update-theme-settings";
 
 import { createAction } from "../action-kit/create-action";
 import { settingsDeps } from "../deps/settings.deps";
@@ -26,17 +29,19 @@ import { settingsDeps } from "../deps/settings.deps";
  *  SERVER ACTIONS DES RÉGLAGES DU SITE
  * ═══════════════════════════════════════════════════════════════════════════
  *
- * §10 du Rapport 2. Cinq actions, une par groupe géré par ce lot — `theme`
- * (Lot 11) et `features` (hors périmètre) n'en ont aucune.
+ * §10 et §11 du Rapport 2. Six actions : cinq pour les groupes du Lot 10, plus
+ * `mettreAJourThemeAction` (Lot 11). `features` reste hors périmètre.
  *
  * ---------------------------------------------------------------------------
- * ⚠️  UNE SEULE PERMISSION POUR LES CINQ : `settings:update`
+ * ⚠️  `settings:update` POUR LES CINQ, `theme:update` POUR LE THÈME
  * ---------------------------------------------------------------------------
- * `core/rbac/permissions.ts` ne distingue pas les groupes — `settings:update`
- * couvre `identity`, `contact`, `legal`, `socials` ET `seo` à la fois, pour
- * `super_admin` et `admin` seulement (absente de la liste `editor`). La RLS
- * dit la même chose (`site_settings_admin_update`, `app_can_publish()`) : un
- * éditeur qui atteindrait l'une de ces cinq actions serait arrêté par les deux
+ * `core/rbac/permissions.ts` ne distingue pas les groupes du Lot 10 —
+ * `settings:update` couvre `identity`, `contact`, `legal`, `socials` ET `seo`
+ * à la fois. Le thème est une ressource RBAC séparée (`theme`, avec la barre
+ * latérale du Lot 5) : son action exige `theme:update`. Les deux permissions
+ * sont accordées à `super_admin` et `admin` seulement, jamais à `editor`, et
+ * la RLS dit la même chose (`site_settings_admin_update`, `app_can_publish()`) :
+ * un éditeur qui atteindrait l'une de ces actions serait arrêté par les deux
  * barrières indépendamment.
  *
  * ---------------------------------------------------------------------------
@@ -134,4 +139,20 @@ export const mettreAJourSeoAction = createAction<typeof seoSettingsSchema, SeoSe
   invalidates: () => ["cms:settings:seo"],
   handler: async ({ input, actor }) =>
     updateSeoSettings(await settingsDeps(), input, actor?.id ?? null),
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * theme (§11)
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+export const mettreAJourThemeAction = createAction<
+  typeof themeSettingsSchema,
+  ThemeSettings
+>({
+  permission: "theme:update",
+  input: themeSettingsSchema,
+  audit: { action: "settings.update_theme", entityType: "site_settings" },
+  invalidates: () => ["cms:settings:theme"],
+  handler: async ({ input, actor }) =>
+    updateThemeSettings(await settingsDeps(), input, actor?.id ?? null),
 });

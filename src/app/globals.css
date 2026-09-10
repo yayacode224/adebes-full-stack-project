@@ -17,18 +17,29 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
-  --font-sans: var(--font-inter);
-  --font-heading: var(--font-sora);
+  /*
+    Le couple de polices est éditable (Lot 11) : `--font-*-runtime` est posé
+    par le <style> serveur de `(site)/layout.tsx` à partir de `src/lib/fonts.ts`.
+    Absent (dashboard, écrans d'authentification), le repli Inter / Sora
+    s'applique — comportement d'avant le lot, inchangé.
+  */
+  --font-sans: var(--font-sans-runtime, var(--font-inter));
+  --font-heading: var(--font-heading-runtime, var(--font-sora));
   --font-mono: var(--font-mono-stack);
 
-  /* Couleurs de marque (valeurs fixes, identiques dans les deux thèmes) */
-  --color-brand-navy: #0f2d52;
-  --color-brand-blue: #2e8bc0;
-  --color-brand-blue-ink: #1b6fa8; /* 5.30:1 sur blanc */
-  --color-brand-green: #4caf50;
-  --color-brand-green-ink: #2e7d32; /* 5.13:1 sur blanc */
-  --color-brand-orange: #f2994a;
-  --color-brand-orange-ink: #a8560c; /* 5.05:1 sur blanc */
+  /*
+    Couleurs de marque (identiques dans les deux thèmes). Le token `@theme`
+    pointe vers une variable `:root` que le <style> du thème (Lot 11) peut
+    réécrire ; les valeurs d'origine sont définies plus bas, dans `:root`.
+    `whatsapp` reste fixe : il n'est pas éditable.
+  */
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-blue-ink: var(--brand-blue-ink);
+  --color-brand-green: var(--brand-green);
+  --color-brand-green-ink: var(--brand-green-ink);
+  --color-brand-orange: var(--brand-orange);
+  --color-brand-orange-ink: var(--brand-orange-ink);
   --color-whatsapp: #25d366;
   --color-whatsapp-ink: #128c7e; /* 4.55:1 sur blanc */
 
@@ -76,6 +87,20 @@
 
 /* --- Thème clair ---------------------------------------------------------- */
 :root {
+  /*
+    Valeurs d'origine des couleurs de marque — copiées à l'identique dans
+    `core/cms/entities/theme-settings.ts` (`THEME_DEFAULTS.brand`). Le <style>
+    du thème réécrit ces sept lignes dans son propre `:root`, après celui-ci
+    dans la cascade.
+  */
+  --brand-navy: #0f2d52;
+  --brand-blue: #2e8bc0;
+  --brand-blue-ink: #1b6fa8; /* 5.30:1 sur blanc */
+  --brand-green: #4caf50;
+  --brand-green-ink: #2e7d32; /* 5.13:1 sur blanc */
+  --brand-orange: #f2994a;
+  --brand-orange-ink: #a8560c; /* 5.05:1 sur blanc */
+
   --background: #fafafa;
   --foreground: #0f2d52; /* navy sur blanc cassé : 13.3:1 */
 

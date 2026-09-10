@@ -9,6 +9,10 @@ import type {
   SeoSettings,
   SocialsSettings,
 } from "@/core/cms/entities/site-settings";
+import {
+  THEME_DEFAULTS,
+  type ThemeSettings,
+} from "@/core/cms/entities/theme-settings";
 import { createPublicClient } from "@/infrastructure/supabase/clients/public";
 import { SupabaseSettingsRepository } from "@/infrastructure/supabase/repositories/settings.repository";
 import { contact, legal, siteConfig } from "@/lib/site-config";
@@ -166,5 +170,20 @@ export const getSeoSettings = cache(async (): Promise<SeoSettings> => {
   } catch (erreur) {
     surErreur("seo", erreur);
     return SEO_REPLI;
+  }
+});
+
+/**
+ * Repli = `THEME_DEFAULTS`, la copie exacte de `globals.css`. Contrairement aux
+ * cinq groupes du Lot 10, `theme` n'a pas d'équivalent dans `site-config.ts` :
+ * ses valeurs d'origine vivent dans `core/cms/entities/theme-settings.ts`, lues
+ * aussi par le mappeur (fusion sur la ligne `{}` du seed) et par la recette.
+ */
+export const getThemeSettings = cache(async (): Promise<ThemeSettings> => {
+  try {
+    return await portPublic().getTheme();
+  } catch (erreur) {
+    surErreur("theme", erreur);
+    return THEME_DEFAULTS;
   }
 });

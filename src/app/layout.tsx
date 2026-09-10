@@ -1,26 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Sora } from "next/font/google";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { FONT_VARIABLE_CLASSNAMES } from "@/lib/fonts";
 import { siteUrl } from "@/lib/site-config";
 import { getIdentitySettings, getSeoSettings } from "@/server/queries/settings.query";
 
 import "./globals.css";
-
-/** Corps de texte : très bon rendu des accents français. */
-const inter = Inter({
-  subsets: ["latin", "latin-ext"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
-/** Titres : géométrique et arrondie, en écho aux formes du pictogramme. */
-const sora = Sora({
-  subsets: ["latin", "latin-ext"],
-  variable: "--font-sora",
-  display: "swap",
-});
 
 /**
  * §10.3 du Rapport 2 : les métadonnées globales viennent désormais des
@@ -90,7 +76,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="fr"
       // next-themes écrit la classe de thème sur <html> avant l'hydratation.
       suppressHydrationWarning
-      className={`${inter.variable} ${sora.variable} h-full antialiased`}
+      className={`${FONT_VARIABLE_CLASSNAMES} h-full antialiased`}
     >
       <head>
         {/*

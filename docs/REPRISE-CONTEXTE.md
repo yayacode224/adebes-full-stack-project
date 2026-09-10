@@ -49,7 +49,7 @@ mémoire sur leur contenu.
 
 ---
 
-## État au terme du Lot 10 — les réglages du site sont livrés et recettés
+## État au terme du Lot 11 — l'éditeur de thème est livré et recetté
 
 ### Lots livrés et recettés
 
@@ -74,6 +74,7 @@ mémoire sur leur contenu.
 | 8I | Documents de bout en bout — **DERNIER LOT DE LA SÉRIE 8** : `document_media_id` NULLABLE donc **aucune garde de publication**, `year` unique vérifiée dans le domaine, avertissement d'ordre propre à cette collection, 5 actions, 3 écrans, bascule de la section Documents de `/impact`, **premier usage réel de `<MediaPicker accept="document">`**, et **correction d'un défaut du SEED** (les 2 rapports étaient en `draft`) | ✅ 114 tests purs + 74 sur base réelle + 59 HTTP + 96 parcours navigateur + 132 mesures responsive = **475, 0 échec** |
 | 9 | Constructeur de pages : **17 blocs** (schéma + défauts + champs + rendu), registre coupé domaine/présentation (`satisfies`), éditeur 3 zones responsive (`/dashboard/pages`), 10 actions serveur, **migration du contenu réel des 10 pages éditoriales** dans 26 sections (3 visuels migrés en Storage), `/contact` laissée en code (aucun bloc ne reproduit sa mise en page) | ✅ 209 tests purs + 56 sur base réelle + 85 de migration validée section par section + 50 mesures responsive (0 débordement) = **400, 0 échec** — voir le détail plus bas |
 | 10 | Réglages du site : domaine + ports pour 5 groupes (`identity`, `contact`, `legal`, `socials`, `seo`) et la navigation (4 menus), 10 actions serveur, **6 écrans dashboard** (`/dashboard/reglages/*`), **rebranchement de 24 fichiers du site public** (layout racine, en-tête, pied de page, JSON-LD, manifest, formulaires, 5 pages) sur les réglages en base, `site-config.ts` conservé comme repli de build | ✅ `tsc`/`build`/`eslint` propres + 25 vérifications fonctionnelles réelles (lecture/écriture/RBAC) sur la base réelle + **54 vérifications HTTP et navigateur réelles** (clic sur les 6 écrans, glisser scénarisé, réordonnancement, 3 largeurs, cibles tactiles, rejeu `createAction` avec une session éditeur) = **79, 0 échec** — deux défauts réels trouvés et corrigés en cours de route, voir le détail plus bas |
+| 11 | Éditeur de thème : sixième groupe `theme` de `site_settings` (couleurs de marque, interface claire, interface sombre, rayon, couple de polices), schéma à **double garde** (assainissement `#hex`/`oklch()`/`color-mix` + contraste des couples critiques rejoué en `superRefine`), `src/lib/fonts.ts` (liste FERMÉE de 6 polices `next/font`, 4 en `preload: false`), **injection serveur d'un `<style>`** dans le HTML de `(site)` (jamais en JS — aucun flash), 7ᵉ écran dashboard avec aperçu clair/sombre vivant et ratio de contraste en direct qui **bloque l'enregistrement** sous 4,5:1, bouton « Rétablir les couleurs d'origine ADEBES », `globals.css` retouché (tokens de marque et de police adossés à des variables `:root` réinscriptibles) | ✅ `tsc`/`build`/`eslint` propres + **59 vérifications de la couche domaine pure** (assainissement, contraste WCAG, `buildThemeCss`, fusion des valeurs d'origine sur la ligne `{}`) + **49 vérifications HTTP et navigateur réelles** (les 7 points de la recette du §11 : `--primary` change les boutons du site, aucun flash dans le HTML brut, couple 3:1 refusé et expliqué, « Rétablir » exact, mode sombre indépendant, valeur hostile rejetée à la validation — au formulaire ET en rejeu HTTP falsifié —, empilement + ratio visibles à 390 px ; plus onglet, garde proxy éditeur, `updated_by`, journal d'audit) = **108, 0 échec** — voir le détail plus bas |
 
 ### Environnement (déjà configuré, ne pas refaire)
 
@@ -2574,32 +2575,140 @@ Lot 4.
 
 ---
 
-## Prochaine étape : Lot 11 — éditeur de thème
+## Ce qu'a livré le Lot 11 (détail)
 
-Décrit au §11 du Rapport 2 : le groupe `theme` de
-`site_settings` (vide depuis le seed, `'{}'::jsonb`) reçoit les tokens de
-`globals.css`, une injection serveur (`<style>` dans le HTML initial, jamais
-en JavaScript après hydratation — un flash de couleurs par défaut sinon),
-un contrôle de contraste EN DIRECT sur les couples critiques, et une liste
-FERMÉE de polices (contrainte réelle de `next/font/google`, littéraux
-requis au build).
+Décrit au §11 du Rapport 2. Le groupe `theme` de `site_settings` (resté
+`'{}'::jsonb` depuis le seed) reçoit les tokens de `globals.css` ; le site
+public les lit et injecte un `<style>` **côté serveur**.
 
-Ce que le Lot 10 lègue et qui compte pour le Lot 11 :
+### Fichiers
 
-- **`SupabaseSettingsRepository` et `settings.query.ts` ont déjà la forme
-  qu'un sixième groupe `theme` réutilisera** : une méthode `getTheme`/
-  `updateTheme` de plus, un schéma de plus dans `core/cms/schemas/settings/`,
-  un repli de plus dans `settings.query.ts`. Aucune des cinq méthodes
-  existantes n'a à changer.
-- **`<SettingsTabs>` porte déjà l'onglet « Thème » ? Non** — la barre
-  n'énumère que les cinq groupes de ce lot plus Navigation ; `Thème` a sa
-  propre entrée de barre latérale (`/dashboard/reglages/theme`, déjà déclarée
-  au Lot 5) mais n'apparaîtra dans `<SettingsTabs>` que si le Lot 11 choisit
-  de l'y ajouter — à décider en ouvrant le lot, pas ici.
-- **Le marqueur `[À COMPLÉTER]` et `toStoredText`/`toEditableText` ne
-  concernent QUE `contact` et `legal`** : aucune couleur ni police n'a de
-  raison d'être « à compléter », le Lot 11 n'a donc pas à réutiliser ce
-  mécanisme.
+| Fichier | Rôle |
+|---|---|
+| `src/lib/fonts.ts` | **Nouveau.** Les 6 polices `next/font/google` de la liste FERMÉE (§11.2), appelées une seule fois au niveau module (littéraux exigés au build). Inter + Sora préchargées ; Poppins, Montserrat, Lora, Source_Sans_3 en `preload: false` — les `@font-face` existent mais rien n'est téléchargé tant que le thème enregistré ne référence pas `--font-*`. Exporte `FONT_VARIABLE_CLASSNAMES` (les 6 classes `.variable` posées sur `<html>` par le layout racine). |
+| `src/core/cms/entities/theme-settings.ts` | **Nouveau, sans framework.** `ThemeSettings` (light/dark = 18 tokens chacun, brand = 7, radius, headingFont, bodyFont), `THEME_DEFAULTS` **copie EXACTE de `globals.css`**, `isColorValueSafe` (assainissement : `#hex` 3/4/6/8, `oklch(...)` numérique, `color-mix(in oklab, #hex NN%, transparent)` — rien d'autre), `contrastRatio` (WCAG, avec conversion OKLCH→sRGB), `CRITICAL_PAIRS` + `couplesCritiquesEnEchec`, `buildThemeCss` (thème → `:root{…}\n.dark{…}`, chaque valeur re-assainie, repli sur l'origine si douteuse), `withThemeDefaults` (fusionne la ligne `{}` du seed), `FONT_CSS_VARS` (id → `--font-*`, donnée pure pour que l'aperçu client ne tire pas `next/font`). |
+| `src/core/cms/schemas/settings/theme.schema.ts` | **Nouveau.** `themeSettingsSchema` : chaque couleur par `isColorValueSafe`, `radius` par `RADIUS_PATTERN`, polices par `z.enum(THEME_FONT_IDS)`, puis `.superRefine` qui rejoue `couplesCritiquesEnEchec` — le contraste des couples critiques est **une règle du domaine**, pas seulement une aide d'IHM. |
+| `src/core/use-cases/settings/update-theme-settings.ts` | **Nouveau.** Passe-plat (gabarit de `update-seo-settings.ts`). |
+| `src/core/cms/ports/settings.port.ts` | `getTheme` / `updateTheme` ajoutés (le commentaire « theme n'a AUCUNE méthode » du Lot 10 est corrigé). |
+| `src/infrastructure/supabase/mappers/site-settings.mapper.ts` | `toThemeSettings` = `parseGroupe(schema, withThemeDefaults(valeur))` — la ligne `{}` devient `THEME_DEFAULTS` avant validation. |
+| `src/infrastructure/supabase/repositories/settings.repository.ts` | `getTheme` / `updateTheme` ; union `ecrireGroupe` élargie. |
+| `src/server/queries/settings.query.ts` | `getThemeSettings` mis en cache, **repli sur `THEME_DEFAULTS`** (pas `site-config.ts` : `theme` n'y a pas d'équivalent). |
+| `src/server/actions/settings.actions.ts` | `mettreAJourThemeAction` — permission **`theme:update`** (ressource RBAC distincte de `settings`), audit `settings.update_theme`, invalide `cms:settings:theme`. |
+| `src/app/globals.css` | `--font-sans` / `--font-heading` reçoivent un repli `var(--font-*-runtime, …)` ; les 7 tokens de marque passent de valeurs littérales dans `@theme inline` à `var(--brand-*)`, définies dans `:root` (donc réinscriptibles par le `<style>` du thème). `whatsapp` reste fixe. |
+| `src/app/layout.tsx` | `Inter`/`Sora` inline remplacés par `FONT_VARIABLE_CLASSNAMES` de `src/lib/fonts.ts`. |
+| `src/app/(site)/layout.tsx` | Lit `getThemeSettings()`, rend `<style id="adebes-theme">` = `buildThemeCss(theme)` + `--font-*-runtime`. Corps du document, donc APRÈS `globals.css` dans la cascade → ses `:root`/`.dark` l'emportent. `(site)` seulement : le dashboard garde `globals.css`. |
+| `src/components/dashboard/settings/theme-settings-form.tsx` | **Nouveau.** Formulaire écrit à la main (le générateur du Lot 6 ne fait ni sélecteur de couleur ni aperçu ni contraste en direct). 43 `<input type="color">` + champ texte jumelé (pour `oklch`/`color-mix`), deux `<Apercu>` isolés (tokens en `style` inline), ratio recalculé à chaque rendu, bouton « Enregistrer » **désactivé** tant qu'un couple critique est sous 4,5:1, bouton « Rétablir les couleurs d'origine ADEBES » (→ `THEME_DEFAULTS`). |
+| `src/components/dashboard/settings/settings-tabs.tsx` | 7ᵉ onglet « Thème » (la page vit sous `/dashboard/reglages/theme`, elle hérite du bandeau). |
+| `src/app/(dashboard)/dashboard/reglages/theme/page.tsx` | **Nouveau.** `requirePermission("theme:read")`, lecture par le port, `<ThemeSettingsForm>`. |
+
+### Recette exécutée (108 mesures, 0 échec)
+
+**Couche domaine pure (59)** — `theme-settings.ts` compilé en CommonJS, exécuté
+sous Node :
+
+- `isColorValueSafe` : accepte les trois formes attendues, **refuse** `red`,
+  `red;}body{display:none`, `url(...)`, `expression(...)`, `rgb(...)`, un
+  `#fff` entouré d'espaces, un commentaire CSS, une chaîne de 80 caractères.
+- `contrastRatio` : noir/blanc ≈ 21:1, blanc/blanc = 1:1, primaire ADEBES/blanc
+  ≈ 5,3:1 (le chiffre du commentaire de `globals.css`), `oklch()` noir/blanc
+  ≈ 21:1 (la conversion OKLCH→sRGB est bonne), `color-mix(... transparent)` →
+  `null`.
+- `couplesCritiquesEnEchec(THEME_DEFAULTS)` = **vide** ; un `primaryForeground`
+  à faible contraste est signalé ; le **mode sombre** est vérifié
+  indépendamment.
+- `buildThemeCss` : `:root{` + `.dark{`, `--primary` clair ET sombre, brand,
+  radius, `--popover` dérivé de `--card`, `color-mix` conservé, accolades
+  équilibrées. **Une entrée hostile** (`#fff;}body{display:none}`,
+  `javascript:alert(1)`, `0.75rem;} html {…}`) est **neutralisée** — la sortie
+  retombe sur la valeur d'origine, jamais la chaîne douteuse.
+- `withThemeDefaults({})` = `THEME_DEFAULTS` exactement ; fusion partielle OK.
+
+**Couche HTTP + navigateur (49)** — `next start`, Chrome piloté en CDP, deux
+comptes temporaires (`admin` + `editor`) créés puis supprimés, groupe `theme`
+remis à `{}` en fin de course. Les 7 points de la recette du §11 :
+
+1. **Modifier `--primary`** dans le formulaire → enregistré → sur `/`, l'élément
+   `bg-primary` (lien d'évitement) est rendu **dans la nouvelle couleur**
+   (`getComputedStyle`), et `updated_by` pointe sur l'admin.
+2. **Aucun flash** : le HTML **brut** de `/` (avant tout JS) contient déjà
+   `<style id="adebes-theme">` avec la nouvelle valeur — l'injection est
+   serveur, pas hydratée.
+3. **Couple 3:1 refusé et expliqué** : un `primaryForeground` = `primary` (1:1)
+   désactive « Enregistrer », affiche le ratio chiffré et **nomme** le couple
+   (« Texte sur le bouton principal (clair) »). Côté serveur : un corps
+   `next-action` réel, rejoué avec `primary` forcé quasi-blanc, est refusé
+   (`VALIDATION`, le `.superRefine`).
+4. **« Rétablir »** ramène `light.primary` à `#1b6fa8`, `dark.background` à
+   `#0b1b2b`, `brand.navy` à `#0f2d52`, `radius` à `0.75rem`, la police de
+   titre à `Sora` ; après enregistrement, `dark.border` a retrouvé son
+   `color-mix(in oklab, #e8eef4 14%, transparent)` d'origine, et le site est
+   revenu à `--primary:#1b6fa8`.
+5. **Mode sombre indépendant** : modifier `dark.background` n'a pas touché
+   `light.primary` du test précédent ; sur `/` en `.dark`, le fond prend la
+   nouvelle couleur.
+6. **Valeur hostile rejetée à la validation** : `red;}body{display:none` saisi
+   dans un champ → le formulaire affiche l'erreur du serveur, rien n'est
+   enregistré ; en rejeu HTTP falsifié, même verdict ; le `<style>` du site ne
+   contient jamais `body{display:none`.
+7. **À 390 px** : aucun débordement horizontal, l'aperçu est **sous** les
+   réglages (empilé), le ratio de contraste et le sélecteur de couleur restent
+   visibles à côté de la couleur en cours de modification.
+
+Plus : les **7 onglets** de réglages (« Thème » compris et marqué actif), la
+garde `proxy.ts` qui **redirige l'éditeur** hors de `/dashboard/reglages/theme`,
+une entrée `settings.update_theme` / `site_settings` dans le journal d'audit.
+
+`npm run build`, `npx tsc --noEmit`, `npx eslint .` : code de sortie **0**,
+zéro avertissement. `/dashboard/reglages/theme` est `ƒ` (rendu à la demande).
+
+### Écarts et décisions, à ne pas « corriger » plus tard
+
+1. **`<style>` dans le corps du document**, pas dans `<head>` : `(site)/layout.tsx`
+   est imbriqué sous le `<body>` du layout racine. Le placer là est
+   VOULU — il doit venir après `globals.css` dans la cascade pour que ses
+   `:root`/`.dark` (même spécificité) l'emportent. C'est exactement le snippet
+   du §11.3.
+2. **`@theme inline` des polices gardé, avec un repli** : `--font-sans:
+   var(--font-sans-runtime, var(--font-inter))`. Tailwind inline l'expression
+   entière dans `.font-sans` ; `--font-sans-runtime` non défini (dashboard,
+   auth) → repli Inter, comportement d'avant le lot. Défini (site) → police
+   choisie. Aucune règle Tailwind à réécrire.
+3. **7 tokens de marque déplacés** de valeurs littérales dans `@theme inline`
+   vers `var(--brand-*)` + `:root`. Sans ça, `.text-brand-navy` aurait porté
+   `#0f2d52` en dur, non réinscriptible. `--color-whatsapp` reste littéral : il
+   n'est pas éditable (§11.1 ne liste que navy/blue/…-ink).
+4. **`theme:update`**, pas `settings:update` : `theme` est une ressource RBAC
+   séparée (`core/rbac/permissions.ts`, barre latérale du Lot 5). Les deux
+   permissions vont aux mêmes rôles, mais l'action du thème porte la sienne.
+5. **Palette de 18 tokens par mode**, pas les 11 exacts du §11.1 : les
+   `-foreground` des couples critiques (`primary-foreground`, `card-foreground`,
+   …) sont éditables, sinon le contrôle de contraste n'aurait rien à comparer.
+   `--popover` / `--popover-foreground` sont **dérivés** de `card` à l'injection
+   (toujours égaux dans `globals.css`), `--chart-*` / `--sidebar-*` gardent
+   leur valeur de `globals.css`.
+6. **Couple critique « destructive »** : `destructive` / blanc en mode clair
+   (bouton de suppression plein), mais `destructive` / `background` en mode
+   sombre — le bouton de suppression sombre est du texte rouge sur fond, pas du
+   blanc sur rouge ; `#ff6b60` sur blanc échouerait et rendrait `THEME_DEFAULTS`
+   invalide.
+7. **Le formulaire du thème n'utilise PAS `<SchemaForm>`** : sélecteurs de
+   couleur, aperçu vivant, contraste en direct sont hors de sa portée. La
+   validation reste `themeSettingsSchema`, rejouée par `createAction` — comme
+   `socials-settings-form.tsx` s'écarte déjà du générateur pour ses `<fieldset>`.
+8. **4 polices en `preload: false`** : les six `@font-face` sont déclarées, mais
+   précharger six fichiers punirait chaque visiteur pour un réglage rare.
+   `display: "swap"` couvre la bascule quand une police secondaire est choisie.
+
+### Points de vigilance légués
+
+- **`THEME_DEFAULTS` doit rester la copie exacte de `globals.css`.** La recette
+  du §11 (#4) le vérifie couleur par couleur. Si `globals.css` bouge, ce
+  fichier bouge avec lui, sinon « Rétablir » ment.
+- **Ne jamais faire passer une valeur de couleur non assainie dans le
+  `<style>`.** `buildThemeCss` re-teste chaque valeur ; garder ce filet même si
+  le schéma d'écriture semble suffisant (défense en profondeur, §11.3).
+- **`features` est le dernier groupe de `site_settings` sans code.** Hors
+  périmètre, ligne `{}` depuis le seed, aucune méthode de port.
 
 ---
 

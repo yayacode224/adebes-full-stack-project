@@ -7,12 +7,16 @@ import { cn } from "@/lib/utils";
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
- *  LES ONGLETS DES SIX ÉCRANS DE RÉGLAGES
+ *  LES ONGLETS DES ÉCRANS DE RÉGLAGES
  * ═══════════════════════════════════════════════════════════════════════════
  *
  * §10.1 du Rapport 2 et §10.2 de sa recette : « la navigation entre groupes
  * passe en onglets défilants horizontalement DANS LEUR PROPRE CONTENEUR,
  * jamais en faisant déborder la page ».
+ *
+ * « Thème » (Lot 11) est le septième onglet : la page vit sous
+ * `/dashboard/reglages/theme`, elle hérite donc de ce bandeau — l'y omettre
+ * afficherait des onglets qui ne mènent jamais à l'écran affiché.
  *
  * ---------------------------------------------------------------------------
  * ⚠️  DES LIENS, PAS LE `<Tabs>` DE RADIX (`components/ui/tabs.tsx`)
@@ -44,6 +48,7 @@ const ONGLETS = [
   { href: "/dashboard/reglages/reseaux", label: "Réseaux sociaux" },
   { href: "/dashboard/reglages/seo", label: "Référencement" },
   { href: "/dashboard/reglages/navigation", label: "Navigation" },
+  { href: "/dashboard/reglages/theme", label: "Thème" },
 ] as const;
 
 /** `/dashboard/reglages` est traité en correspondance EXACTE — sinon il est
