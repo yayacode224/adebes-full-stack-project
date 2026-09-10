@@ -17,8 +17,12 @@ import { whatsappLink, whatsappMessages } from "@/lib/site-config";
  * Sur /don, le raccourci vers le don ferait doublon avec la page elle-même ;
  * seul WhatsApp subsiste, en pleine largeur. La barre reste présente pour que
  * la hauteur réservée en bas de page ne varie pas d'une page à l'autre.
+ *
+ * `phoneE164` est une PROP depuis le Lot 10 : ce composant est un Client
+ * Component (`usePathname`), qui ne peut pas appeler `getContactSettings()`,
+ * `server-only`. `(site)/layout.tsx` la lit une fois et la transmet.
  */
-export function StickyMobileActionBar() {
+export function StickyMobileActionBar({ phoneE164 }: { phoneE164: string }) {
   const pathname = usePathname();
   const surPageDon = pathname === "/don";
 
@@ -39,7 +43,7 @@ export function StickyMobileActionBar() {
         )}
 
         <a
-          href={whatsappLink(whatsappMessages.contact)}
+          href={whatsappLink(phoneE164, whatsappMessages.contact)}
           target="_blank"
           rel="noreferrer noopener"
           className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-whatsapp-ink text-sm font-semibold text-white transition-colors hover:bg-[#0f7a6d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring dark:bg-whatsapp dark:text-[#06121e]"

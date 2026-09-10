@@ -4,7 +4,10 @@ import Link from "next/link";
 import { Container } from "@/components/layout/container";
 import { MediaImage } from "@/components/media/media-image";
 import { Button } from "@/components/ui/button";
-import { contact, siteConfig } from "@/lib/site-config";
+import {
+  getContactSettings,
+  getIdentitySettings,
+} from "@/server/queries/settings.query";
 
 /**
  * Hero de la page d'accueil.
@@ -14,8 +17,17 @@ import { contact, siteConfig } from "@/lib/site-config";
  * premier rendu, y compris sans JavaScript (section 9 du cahier des charges).
  *
  * La photo est chargée en `priority` — c'est le LCP de la page.
+ *
+ * Asynchrone depuis le Lot 10 : devise, accroche, description et coordonnées
+ * viennent des réglages (`identity`, `contact`) plutôt que de
+ * `site-config.ts`.
  */
-export function HomeHero() {
+export async function HomeHero() {
+  const [identite, contact] = await Promise.all([
+    getIdentitySettings(),
+    getContactSettings(),
+  ]);
+
   return (
     <section className="relative isolate -mt-16 flex min-h-[38rem] items-end overflow-hidden bg-[#0b1b2b] lg:-mt-20 lg:min-h-[88svh]">
       <MediaImage
@@ -60,15 +72,15 @@ export function HomeHero() {
             aria-hidden="true"
             className="size-1.5 rounded-full bg-brand-green"
           />
-          {siteConfig.motto}
+          {identite.motto}
         </p>
 
         <h1 className="max-w-4xl font-heading text-[2rem] font-bold leading-[1.08] text-white sm:text-5xl lg:text-6xl">
-          {siteConfig.tagline}
+          {identite.tagline}
         </h1>
 
         <p className="mt-5 max-w-2xl text-[0.98rem] leading-relaxed text-white/85 sm:text-lg">
-          {siteConfig.description}
+          {identite.description}
         </p>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">

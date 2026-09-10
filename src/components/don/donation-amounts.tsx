@@ -22,8 +22,11 @@ const format = new Intl.NumberFormat("fr-FR");
  *
  * Le jour où un prestataire de paiement est retenu (CinetPay, Mobile Money…),
  * seul le gestionnaire du bouton principal est à remplacer.
+ *
+ * `phoneE164` est une PROP depuis le Lot 10 : Client Component, ne peut pas
+ * appeler `getContactSettings()` (`server-only`). Fournie par l'appelant.
  */
-export function DonationAmounts() {
+export function DonationAmounts({ phoneE164 }: { phoneE164: string }) {
   const [selected, setSelected] = useState<number | null>(10000);
   const [custom, setCustom] = useState("");
 
@@ -98,7 +101,7 @@ export function DonationAmounts() {
 
       <Button asChild variant="whatsapp" size="lg" className="w-full">
         <a
-          href={whatsappLink(message)}
+          href={whatsappLink(phoneE164, message)}
           target="_blank"
           rel="noreferrer noopener"
         >

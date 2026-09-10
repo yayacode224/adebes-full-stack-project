@@ -12,12 +12,13 @@ import { Button } from "@/components/ui/button";
 import { ContentIcon } from "@/components/ui-ext/content-icon";
 import { Reveal } from "@/components/ui-ext/reveal";
 import { SectionHeading } from "@/components/ui-ext/section-heading";
-import { contact, whatsappLink, whatsappMessages } from "@/lib/site-config";
+import { whatsappLink, whatsappMessages } from "@/lib/site-config";
 import { getPagePublique } from "@/server/queries/pages.query";
 import {
   getLibellesBenevolat,
   getProgrammesPublies,
 } from "@/server/queries/programmes.query";
+import { getContactSettings } from "@/server/queries/settings.query";
 
 export const metadata: Metadata = {
   title: "Devenir bénévole",
@@ -64,10 +65,11 @@ export default async function BenevolatPage() {
     Trois lectures indépendantes, la deuxième mémoïsée par `cache()` : elle ne
     déclenche pas de requête, elle dérive de la première.
   */
-  const [programmes, domaines, page] = await Promise.all([
+  const [programmes, domaines, page, contact] = await Promise.all([
     getProgrammesPublies(),
     getLibellesBenevolat(),
     getPagePublique("/benevolat"),
+    getContactSettings(),
   ]);
 
   return (
@@ -216,7 +218,7 @@ export default async function BenevolatPage() {
 
                   <Button asChild variant="whatsapp" className="w-full">
                     <a
-                      href={whatsappLink(whatsappMessages.benevolat)}
+                      href={whatsappLink(contact.phoneE164, whatsappMessages.benevolat)}
                       target="_blank"
                       rel="noreferrer noopener"
                     >

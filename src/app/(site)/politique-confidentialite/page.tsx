@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { LegalPage, LegalSection } from "@/components/ui-ext/legal-page";
-import { contact, siteConfig } from "@/lib/site-config";
+import {
+  getContactSettings,
+  getIdentitySettings,
+} from "@/server/queries/settings.query";
 
 export const metadata: Metadata = {
   title: "Politique de confidentialité",
@@ -11,7 +14,19 @@ export const metadata: Metadata = {
   alternates: { canonical: "/politique-confidentialite" },
 };
 
-export default function PolitiqueConfidentialitePage() {
+/**
+ * ⚠️  `force-dynamic` — TRANSITOIRE, À RETIRER AU LOT 15. Sans elle, la page
+ * serait figée au build (mesuré : `○ /politique-confidentialite`) — voir
+ * `(site)/page.tsx`.
+ */
+export const dynamic = "force-dynamic";
+
+export default async function PolitiqueConfidentialitePage() {
+  const [identite, contact] = await Promise.all([
+    getIdentitySettings(),
+    getContactSettings(),
+  ]);
+
   return (
     <LegalPage title="Politique de confidentialité" updatedAt="2026-08-27">
       <LegalSection title="En résumé">
@@ -25,7 +40,7 @@ export default function PolitiqueConfidentialitePage() {
 
       <LegalSection title="Responsable du traitement">
         <p>
-          {siteConfig.name} — {siteConfig.legalName}, {contact.city},{" "}
+          {identite.name} — {identite.legalName}, {contact.city},{" "}
           {contact.country}. Contact :{" "}
           <a href={`mailto:${contact.email}`}>{contact.email}</a>.
         </p>
@@ -75,7 +90,7 @@ export default function PolitiqueConfidentialitePage() {
       <LegalSection title="Destinataires">
         <p>
           Les messages sont transmis par e-mail à l&apos;équipe d&apos;
-          {siteConfig.name}. L&apos;acheminement est assuré par notre
+          {identite.name}. L&apos;acheminement est assuré par notre
           prestataire d&apos;envoi d&apos;e-mails, qui agit comme
           sous-traitant et ne réutilise pas ces données.
         </p>

@@ -3,6 +3,7 @@ import { ContentIcon } from "@/components/ui-ext/content-icon";
 import { Reveal } from "@/components/ui-ext/reveal";
 import type { DonationOptionsContent } from "@/core/cms/blocks/definitions/donation-options.block";
 import { cn } from "@/lib/utils";
+import { getContactSettings } from "@/server/queries/settings.query";
 
 import { BlockSection, PiedDeSection, enteteEstVide } from "../block-section";
 import type { ProprietesDeRendu } from "../types";
@@ -26,12 +27,19 @@ import type { ProprietesDeRendu } from "../types";
  * montant). Il porte ses quatre paliers et compose son message WhatsApp en
  * francs CFA — indissociables du texte du message, qui vit dans le même
  * fichier. Ce bloc décide de l'afficher ou non, pas de son contenu.
+ *
+ * Asynchrone depuis le Lot 10, comme les Renderer des sept sections de
+ * l'accueil (§9.4 du Rapport 2) : `getContactSettings()` fournit le numéro
+ * WhatsApp que `<DonationAmounts>` — Client Component — ne peut pas lire
+ * lui-même.
  */
-export function DonationOptionsRenderer({
+export async function DonationOptionsRenderer({
   content,
 }: ProprietesDeRendu<DonationOptionsContent>) {
   const rienAAfficher = !content.showAmounts && content.methods.length === 0;
   if (rienAAfficher && enteteEstVide(content)) return null;
+
+  const { phoneE164 } = await getContactSettings();
 
   return (
     <BlockSection
@@ -47,7 +55,7 @@ export function DonationOptionsRenderer({
               enteteEstVide(content) ? undefined : "mt-8",
             )}
           >
-            <DonationAmounts />
+            <DonationAmounts phoneE164={phoneE164} />
           </div>
         </Reveal>
       ) : null}

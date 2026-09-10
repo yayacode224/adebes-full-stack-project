@@ -136,9 +136,19 @@ export const socials: Record<
   tiktok: socialLink("TikTok", process.env.NEXT_PUBLIC_TIKTOK_URL),
 };
 
-/** Construit un lien wa.me avec un message pré-rempli. */
-export function whatsappLink(message: string): string {
-  const number = contact.phoneE164.replace(/\D/g, "");
+/**
+ * Construit un lien wa.me avec un message pré-rempli.
+ *
+ * §10.3 du Rapport 2 : « `whatsappLink()` et `whatsappMessages` restent du
+ * code — ce sont des gabarits de message — mais le numéro provient désormais
+ * des réglages. » `phoneE164` est donc un paramètre depuis le Lot 10, plus
+ * une lecture du `contact` de ce fichier : chaque appelant le tient de
+ * `getContactSettings()` (`server/queries/settings.query.ts`), qui replie
+ * sur `contact.phoneE164` ci-dessus si la base est injoignable — ce fichier
+ * n'a donc plus besoin de le lire lui-même.
+ */
+export function whatsappLink(phoneE164: string, message: string): string {
+  const number = phoneE164.replace(/\D/g, "");
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
 }
 

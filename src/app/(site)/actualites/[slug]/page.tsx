@@ -28,6 +28,7 @@ import {
   getCategoriesParId,
 } from "@/server/queries/articles.query";
 import { resoudreMedias } from "@/server/queries/media.query";
+import { getIdentitySettings } from "@/server/queries/settings.query";
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -104,9 +105,10 @@ export default async function ArticlePage(
     déjà résolu la couverture. Aucune requête n'est faite deux fois dans un
     même rendu.
   */
-  const [tous, categories] = await Promise.all([
+  const [tous, categories, identite] = await Promise.all([
     getArticlesPublies(),
     getCategoriesParId(),
+    getIdentitySettings(),
   ]);
 
   const aLire = tous.filter((item) => item.slug !== article.slug).slice(0, 3);
@@ -150,6 +152,7 @@ export default async function ArticlePage(
             slug: article.slug,
             datePublished: article.publishedAt,
             image: imageJsonLd,
+            siteName: identite.name,
           })}
         />
       ) : null}

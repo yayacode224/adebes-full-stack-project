@@ -6,14 +6,21 @@ import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import { whatsappLink, whatsappMessages } from "@/lib/site-config";
 import { cn } from "@/lib/utils";
+import { getContactSettings } from "@/server/queries/settings.query";
 
 /**
  * Bandeau d'appel à l'action de fin de page.
  *
  * Les trois canaux de conversion sont proposés côte à côte — don, bénévolat,
  * WhatsApp — là où l'ancien site n'en offrait qu'un seul (audit §4.3).
+ *
+ * Server Component asynchrone depuis le Lot 10 : `getContactSettings()` lit
+ * le numéro WhatsApp dans les réglages. Aucun appelant n'a besoin d'être
+ * modifié — `<CTABanner />` reste un simple élément JSX, `cache()` mutualise
+ * la lecture avec les autres composants du même rendu qui la demandent aussi
+ * (en-tête, pied de page).
  */
-export function CTABanner({
+export async function CTABanner({
   title = "Votre soutien change des vies",
   subtitle = "Un don, quelques heures de bénévolat, ou simplement un message : chaque geste fait avancer nos programmes.",
   className,
@@ -24,6 +31,8 @@ export function CTABanner({
   className?: string;
   whatsappMessage?: string;
 }) {
+  const { phoneE164 } = await getContactSettings();
+
   return (
     <section className={cn("py-14 lg:py-20", className)}>
       <Container size="wide">
@@ -63,7 +72,7 @@ export function CTABanner({
 
               <Button asChild variant="whatsapp" size="lg">
                 <a
-                  href={whatsappLink(whatsappMessage)}
+                  href={whatsappLink(phoneE164, whatsappMessage)}
                   target="_blank"
                   rel="noreferrer noopener"
                 >

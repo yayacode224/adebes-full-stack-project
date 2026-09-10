@@ -10,7 +10,11 @@ import { JsonLd, breadcrumbJsonLd } from "@/components/seo/json-ld";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui-ext/reveal";
 import { SectionHeading } from "@/components/ui-ext/section-heading";
-import { contact, whatsappLink, whatsappMessages } from "@/lib/site-config";
+import { whatsappLink, whatsappMessages } from "@/lib/site-config";
+import {
+  getContactSettings,
+  getSocialsSettings,
+} from "@/server/queries/settings.query";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -25,16 +29,36 @@ export const metadata: Metadata = {
 };
 
 /**
- * Carte : l'audit relève (§4.9) l'absence de toute localisation. Google Maps
- * est intégré en `iframe` avec `loading="lazy"` — la carte n'est chargée que
- * si le visiteur fait défiler jusqu'à elle, ce qui évite d'imposer plusieurs
- * centaines de kilo-octets à un visiteur mobile qui ne la regardera pas.
+ * ⚠️  `force-dynamic` — TRANSITOIRE, À RETIRER AU LOT 15
+ * ---------------------------------------------------------------------------
+ * Sans cette directive, cette page serait prérendue au BUILD (mesuré : elle
+ * l'était, `○ /contact`, avant l'ajout de cette ligne) — modifier l'adresse
+ * ou le téléphone depuis `/dashboard/reglages/contact` resterait alors sans
+ * effet jusqu'au prochain déploiement. Même raison que `(site)/page.tsx`
+ * (§9.5 du Rapport 2).
  */
-const mapSrc = `https://www.google.com/maps?q=${encodeURIComponent(
-  `${contact.city}, ${contact.country}`,
-)}&output=embed`;
+export const dynamic = "force-dynamic";
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const [contact, socials] = await Promise.all([
+    getContactSettings(),
+    getSocialsSettings(),
+  ]);
+
+  /*
+    Carte : l'audit relève (§4.9) l'absence de toute localisation. Google Maps
+    est intégré en `iframe` avec `loading="lazy"` — la carte n'est chargée que
+    si le visiteur fait défiler jusqu'à elle, ce qui évite d'imposer plusieurs
+    centaines de kilo-octets à un visiteur mobile qui ne la regardera pas.
+
+    Déplacée depuis le niveau du module (§10.3 du Rapport 2) : `contact` est
+    désormais lu à la requête, elle ne peut plus être une constante calculée
+    au chargement du fichier.
+  */
+  const mapSrc = `https://www.google.com/maps?q=${encodeURIComponent(
+    `${contact.city}, ${contact.country}`,
+  )}&output=embed`;
+
   const coordonnees = [
     {
       icon: MapPin,
@@ -140,7 +164,7 @@ export default function ContactPage() {
 
                   <Button asChild variant="whatsapp" className="w-full">
                     <a
-                      href={whatsappLink(whatsappMessages.contact)}
+                      href={whatsappLink(contact.phoneE164, whatsappMessages.contact)}
                       target="_blank"
                       rel="noreferrer noopener"
                     >
@@ -153,7 +177,7 @@ export default function ContactPage() {
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       Nous suivre
                     </p>
-                    <SocialLinks className="mt-3" />
+                    <SocialLinks socials={socials} className="mt-3" />
                   </div>
                 </div>
               </Reveal>

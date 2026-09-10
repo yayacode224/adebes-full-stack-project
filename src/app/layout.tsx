@@ -3,7 +3,8 @@ import { Inter, Sora } from "next/font/google";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
-import { siteConfig, siteUrl } from "@/lib/site-config";
+import { siteUrl } from "@/lib/site-config";
+import { getIdentitySettings, getSeoSettings } from "@/server/queries/settings.query";
 
 import "./globals.css";
 
@@ -21,54 +22,60 @@ const sora = Sora({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: {
-    default: `${siteConfig.name} — ${siteConfig.legalName}`,
-    template: `%s · ${siteConfig.name}`,
-  },
-  description: siteConfig.metaDescription,
-  applicationName: siteConfig.name,
-  authors: [{ name: siteConfig.legalName }],
-  keywords: [
-    "ADEBES",
-    "association Cameroun",
-    "ONG Douala",
-    "développement communautaire",
-    "éducation Cameroun",
-    "santé Cameroun",
-    "bénévolat Cameroun",
-    "faire un don Cameroun",
-  ],
-  alternates: { canonical: "/" },
-  openGraph: {
-    type: "website",
-    locale: siteConfig.locale,
-    url: siteUrl,
-    siteName: siteConfig.name,
-    title: `${siteConfig.name} — ${siteConfig.legalName}`,
-    description: siteConfig.metaDescription,
-    images: [
-      {
-        url: "/images/logo/og-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: `${siteConfig.name} — ${siteConfig.tagline}`,
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: `${siteConfig.name} — ${siteConfig.legalName}`,
-    description: siteConfig.metaDescription,
-    images: ["/images/logo/og-image.jpg"],
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: { index: true, follow: true, "max-image-preview": "large" },
-  },
-};
+/**
+ * §10.3 du Rapport 2 : les métadonnées globales viennent désormais des
+ * groupes de réglages `identity` et `seo` — `generateMetadata` remplace la
+ * constante `metadata` pour pouvoir les lire (`getIdentitySettings()` et
+ * `getSeoSettings()` replient sur `site-config.ts` si la base est
+ * injoignable, voir `settings.query.ts`).
+ *
+ * `metadataBase` reste construit depuis `siteUrl` : c'est le seul champ que
+ * ce lot laisse à `resolveSiteUrl()`, indispensable au build (§10.3, dernier
+ * paragraphe).
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const [identite, seo] = await Promise.all([getIdentitySettings(), getSeoSettings()]);
+
+  return {
+    metadataBase: new URL(siteUrl),
+    title: {
+      default: `${identite.name} — ${identite.legalName}`,
+      template: `%s · ${identite.name}`,
+    },
+    description: seo.metaDescription,
+    applicationName: identite.name,
+    authors: [{ name: identite.legalName }],
+    keywords: seo.keywords,
+    alternates: { canonical: "/" },
+    openGraph: {
+      type: "website",
+      locale: seo.locale,
+      url: siteUrl,
+      siteName: identite.name,
+      title: `${identite.name} — ${identite.legalName}`,
+      description: seo.metaDescription,
+      images: [
+        {
+          url: "/images/logo/og-image.jpg",
+          width: 1200,
+          height: 630,
+          alt: `${identite.name} — ${identite.tagline}`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${identite.name} — ${identite.legalName}`,
+      description: seo.metaDescription,
+      images: ["/images/logo/og-image.jpg"],
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: { index: true, follow: true, "max-image-preview": "large" },
+    },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: [

@@ -2,12 +2,12 @@ import { Clock, Mail, MapPin, Phone } from "lucide-react";
 import Link from "next/link";
 
 import { Logo } from "@/components/brand/logo";
+import { getVisibleNavigation } from "@/server/queries/navigation.query";
 import {
-  conversionNav,
-  legalNav,
-  mainNav,
-} from "@/lib/navigation";
-import { contact, siteConfig } from "@/lib/site-config";
+  getContactSettings,
+  getIdentitySettings,
+  getSocialsSettings,
+} from "@/server/queries/settings.query";
 
 import { Container } from "./container";
 import { SocialLinks } from "./social-links";
@@ -18,9 +18,25 @@ import { SocialLinks } from "./social-links";
  * Fond bleu nuit dans les deux thèmes : c'est la teinte du logo, et cela donne
  * au bas de page un ancrage stable quel que soit le mode d'affichage. Le logo y
  * est donc systématiquement rendu en variante claire (section 6).
+ *
+ * §10.3 du Rapport 2 : identité, coordonnées, réseaux et les trois menus
+ * viennent désormais des réglages et de la navigation en base — `cache()`
+ * mutualise ces lectures avec `<SiteHeader>`, qui demande les deux premiers
+ * menus dans le même rendu (voir `settings.query.ts` et
+ * `navigation.query.ts`).
  */
-export function SiteFooter() {
+export async function SiteFooter() {
   const year = new Date().getFullYear();
+
+  const [identite, contact, socials, mainNav, conversionNav, legalNav] =
+    await Promise.all([
+      getIdentitySettings(),
+      getContactSettings(),
+      getSocialsSettings(),
+      getVisibleNavigation("main"),
+      getVisibleNavigation("conversion"),
+      getVisibleNavigation("legal"),
+    ]);
 
   return (
     <footer className="mt-auto bg-[#0b1b2b] text-white/80">
@@ -44,10 +60,10 @@ export function SiteFooter() {
             </Link>
 
             <p className="mt-5 max-w-sm text-sm leading-relaxed text-white/70">
-              {siteConfig.description}
+              {identite.description}
             </p>
 
-            <SocialLinks tone="dark" className="mt-6" />
+            <SocialLinks socials={socials} tone="dark" className="mt-6" />
           </div>
 
           {/* Navigation */}
@@ -57,7 +73,7 @@ export function SiteFooter() {
             </h2>
             <ul className="mt-4 flex flex-col gap-1">
               {mainNav.slice(1).map((item) => (
-                <li key={item.href}>
+                <li key={item.id}>
                   <Link
                     href={item.href}
                     className="inline-flex min-h-11 items-center rounded-md text-sm text-white/70 transition-colors hover:text-white"
@@ -76,7 +92,7 @@ export function SiteFooter() {
             </h2>
             <ul className="mt-4 flex flex-col gap-1">
               {conversionNav.map((item) => (
-                <li key={item.href}>
+                <li key={item.id}>
                   <Link
                     href={item.href}
                     className="inline-flex min-h-11 items-center rounded-md text-sm text-white/70 transition-colors hover:text-white"
@@ -140,13 +156,13 @@ export function SiteFooter() {
 
         <div className="mt-12 flex flex-col gap-4 border-t border-white/15 pt-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-white/55">
-            © {year} {siteConfig.name} — {siteConfig.legalName}. Tous droits
+            © {year} {identite.name} — {identite.legalName}. Tous droits
             réservés.
           </p>
 
           <ul className="flex flex-wrap items-center gap-x-5 gap-y-1">
             {legalNav.map((item) => (
-              <li key={item.href}>
+              <li key={item.id}>
                 <Link
                   href={item.href}
                   className="inline-flex min-h-11 items-center rounded-md text-xs text-white/60 transition-colors hover:text-white sm:min-h-0"

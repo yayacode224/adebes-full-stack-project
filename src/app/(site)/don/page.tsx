@@ -12,6 +12,7 @@ import { Reveal } from "@/components/ui-ext/reveal";
 import { SectionHeading } from "@/components/ui-ext/section-heading";
 import { getPagePublique } from "@/server/queries/pages.query";
 import { getProgrammesPublies } from "@/server/queries/programmes.query";
+import { getContactSettings } from "@/server/queries/settings.query";
 
 export const metadata: Metadata = {
   title: "Faire un don",
@@ -54,9 +55,10 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function DonPage() {
-  const [programmes, page] = await Promise.all([
+  const [programmes, page, contact] = await Promise.all([
     getProgrammesPublies(),
     getPagePublique("/don"),
+    getContactSettings(),
   ]);
 
   return (
@@ -82,7 +84,7 @@ export default async function DonPage() {
           <div className="grid gap-10 lg:grid-cols-12 lg:gap-14">
             {/* --- Montant + WhatsApp --- */}
             <div className="lg:col-span-6">
-              <DonationAmounts />
+              <DonationAmounts phoneE164={contact.phoneE164} />
             </div>
 
             {/* --- À quoi sert un don --- */}

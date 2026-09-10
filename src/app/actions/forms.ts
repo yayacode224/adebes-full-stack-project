@@ -8,8 +8,9 @@ import {
   type ContactInput,
   type VolunteerInput,
 } from "@/lib/schemas";
-import { contact, siteConfig } from "@/lib/site-config";
+import { siteUrl } from "@/lib/site-config";
 import { getLibellesBenevolat } from "@/server/queries/programmes.query";
+import { getContactSettings } from "@/server/queries/settings.query";
 
 export type FormResult =
   | { ok: true; message: string }
@@ -26,18 +27,9 @@ function env(value: string | undefined): string | undefined {
 }
 
 const RESEND_API_KEY = env(process.env.RESEND_API_KEY);
-const CONTACT_TO = env(process.env.CONTACT_EMAIL_TO) ?? contact.email;
+/** Repli seulement — `CONTACT_EMAIL_TO` reste prioritaire s'il est renseigné. */
+const CONTACT_TO_ENV = env(process.env.CONTACT_EMAIL_TO);
 const CONTACT_FROM = env(process.env.CONTACT_EMAIL_FROM);
-
-/**
- * Message affiché lorsque l'envoi d'e-mail n'est pas configuré.
- *
- * Plutôt que de faire croire à un envoi réussi, on l'annonce et on redirige
- * vers les canaux qui, eux, fonctionnent. C'est le seul comportement
- * acceptable pour une association : un message de bénévole perdu en silence
- * est pire qu'une erreur affichée.
- */
-const NOT_CONFIGURED = `L'envoi automatique n'est pas encore activé. Écrivez-nous directement à ${contact.email} ou sur WhatsApp au ${contact.phoneDisplay}.`;
 
 function escapeHtml(value: string): string {
   return value
@@ -61,12 +53,19 @@ function wrapEmail(title: string, rows: [string, string][]): string {
   return `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#fafafa;padding:24px">
   <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #d9e2ec;border-radius:12px;padding:24px">
     <h1 style="margin:0 0 4px;font-size:18px;color:#0f2d52">${escapeHtml(title)}</h1>
-    <p style="margin:0 0 20px;font-size:13px;color:#55708f">Envoyé depuis ${escapeHtml(siteConfig.url)}</p>
+    <p style="margin:0 0 20px;font-size:13px;color:#55708f">Envoyé depuis ${escapeHtml(siteUrl)}</p>
     <table style="width:100%;border-collapse:collapse">${renderRows(rows)}</table>
   </div>
 </div>`;
 }
 
+/**
+ * §10.3 du Rapport 2 : l'adresse de repli et les deux messages qui citent
+ * une coordonnée viennent désormais des réglages (`getContactSettings()`),
+ * lus à CHAQUE envoi plutôt qu'une fois au chargement du module — un
+ * changement de numéro ou d'adresse depuis le dashboard doit se répercuter
+ * sur le prochain message envoyé, pas seulement après un redéploiement.
+ */
 async function sendEmail({
   subject,
   html,
@@ -76,18 +75,24 @@ async function sendEmail({
   html: string;
   replyTo: string;
 }): Promise<FormResult> {
+  const contact = await getContactSettings();
+  const contactTo = CONTACT_TO_ENV ?? contact.email;
+
   if (!RESEND_API_KEY || !CONTACT_FROM) {
     console.warn(
       "[ADEBES] RESEND_API_KEY ou CONTACT_EMAIL_FROM manquant : e-mail non envoyé.",
     );
-    return { ok: false, message: NOT_CONFIGURED };
+    return {
+      ok: false,
+      message: `L'envoi automatique n'est pas encore activé. Écrivez-nous directement à ${contact.email} ou sur WhatsApp au ${contact.phoneDisplay}.`,
+    };
   }
 
   try {
     const resend = new Resend(RESEND_API_KEY);
     const { error } = await resend.emails.send({
       from: CONTACT_FROM,
-      to: CONTACT_TO,
+      to: contactTo,
       replyTo,
       subject,
       html,

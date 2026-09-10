@@ -3,6 +3,12 @@ import { HomeHero } from "@/components/home/home-hero";
 import { JsonLd, ngoJsonLd, websiteJsonLd } from "@/components/seo/json-ld";
 import { CTABanner } from "@/components/ui-ext/cta-banner";
 import { getPagePublique } from "@/server/queries/pages.query";
+import {
+  getContactSettings,
+  getIdentitySettings,
+  getLegalSettings,
+  getSocialsSettings,
+} from "@/server/queries/settings.query";
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -37,12 +43,18 @@ import { getPagePublique } from "@/server/queries/pages.query";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const page = await getPagePublique("/");
+  const [page, identity, contact, legal, socials] = await Promise.all([
+    getPagePublique("/"),
+    getIdentitySettings(),
+    getContactSettings(),
+    getLegalSettings(),
+    getSocialsSettings(),
+  ]);
 
   return (
     <>
-      <JsonLd data={ngoJsonLd()} />
-      <JsonLd data={websiteJsonLd()} />
+      <JsonLd data={ngoJsonLd({ identity, contact, legal, socials })} />
+      <JsonLd data={websiteJsonLd({ identity })} />
 
       <HomeHero />
 

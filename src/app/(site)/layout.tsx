@@ -1,6 +1,7 @@
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { StickyMobileActionBar } from "@/components/layout/sticky-mobile-action-bar";
+import { getContactSettings } from "@/server/queries/settings.query";
 
 /**
  * Chrome du site public.
@@ -27,7 +28,9 @@ import { StickyMobileActionBar } from "@/components/layout/sticky-mobile-action-
  *
  * Elle accompagne désormais le composant qu'elle sert.
  */
-export default function SiteLayout({ children }: LayoutProps<"/">) {
+export default async function SiteLayout({ children }: LayoutProps<"/">) {
+  const { phoneE164 } = await getContactSettings();
+
   return (
     <div className="flex min-h-dvh flex-col pb-action-bar lg:pb-0">
       {/*
@@ -49,7 +52,7 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
       </main>
 
       <SiteFooter />
-      <StickyMobileActionBar />
+      <StickyMobileActionBar phoneE164={phoneE164} />
     </div>
   );
 }

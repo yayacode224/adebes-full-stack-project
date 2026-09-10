@@ -5,8 +5,13 @@ import { SocialLinks } from "@/components/layout/social-links";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui-ext/reveal";
 import type { ContactInfoContent } from "@/core/cms/blocks/definitions/contact-info.block";
-import { TODO, contact, whatsappLink, whatsappMessages } from "@/lib/site-config";
+import { SETTINGS_TODO_MARKER } from "@/core/cms/entities/site-settings";
+import { whatsappLink, whatsappMessages } from "@/lib/site-config";
 import { cn } from "@/lib/utils";
+import {
+  getContactSettings,
+  getSocialsSettings,
+} from "@/server/queries/settings.query";
 
 import { BlockSection, enteteEstVide } from "../block-section";
 import type { ProprietesDeRendu } from "../types";
@@ -33,8 +38,13 @@ import type { ProprietesDeRendu } from "../types";
  *
  * L'adresse affichée est donc « Ville, Pays » — exactement ce que fait la page
  * `/contact` actuelle, et exactement ce que le contenu permet d'affirmer.
+ *
+ * Asynchrone depuis le Lot 10 : `getContactSettings()` et
+ * `getSocialsSettings()` remplacent la lecture directe de
+ * `src/lib/site-config.ts` (§9.4 du Rapport 2, même famille que les sept
+ * Renderer de l'accueil).
  */
-export function ContactInfoRenderer({
+export async function ContactInfoRenderer({
   content,
 }: ProprietesDeRendu<ContactInfoContent>) {
   type LigneDeContact = {
@@ -45,22 +55,22 @@ export function ContactInfoRenderer({
     href: string | null;
   };
 
+  const [contact, socials] = await Promise.all([
+    getContactSettings(),
+    getSocialsSettings(),
+  ]);
+
   /*
     L'adresse se compose des parties RÉELLEMENT renseignées.
 
-    `streetAddress` et `postalCode` valent `[À COMPLÉTER]` aujourd'hui : les
+    `streetAddress` et `postalCode` peuvent valoir `SETTINGS_TODO_MARKER` : les
     écarter laisse « Douala, Cameroun », qui est vrai. Les inclure aurait mis le
     marqueur en toutes lettres sur la page Contact.
   */
-  // `string[]` explicite : `site-config.ts` est déclaré `as const`, donc
-  // `streetAddress` a pour type le LITTÉRAL « [À COMPLÉTER] ». Sans
-  // l'annotation, le tableau se referme sur ce littéral et n'accepte plus la
-  // ville — une erreur de compilation qui décrit l'état actuel des données,
-  // pas une contrainte durable.
-  const parties: string[] = [contact.streetAddress, contact.postalCode];
+  const parties = [contact.streetAddress, contact.postalCode];
 
   const adresse = parties
-    .filter((partie) => partie.trim() && partie !== TODO)
+    .filter((partie) => partie.trim() && partie !== SETTINGS_TODO_MARKER)
     .concat(`${contact.city}, ${contact.country}`)
     .join(" · ");
 
@@ -106,7 +116,7 @@ export function ContactInfoRenderer({
   // Une coordonnée vide ou encore à compléter n'est jamais rendue, même si sa
   // case est cochée. Voir l'avertissement en tête de fichier.
   const affichables = lignes.filter(
-    (ligne) => ligne.valeur.trim() && !ligne.valeur.includes(TODO),
+    (ligne) => ligne.valeur.trim() && !ligne.valeur.includes(SETTINGS_TODO_MARKER),
   );
 
   return (
@@ -154,7 +164,7 @@ export function ContactInfoRenderer({
             {content.showWhatsApp ? (
               <Button asChild variant="whatsapp" size="lg">
                 <a
-                  href={whatsappLink(whatsappMessages.contact)}
+                  href={whatsappLink(contact.phoneE164, whatsappMessages.contact)}
                   target="_blank"
                   rel="noreferrer noopener"
                 >
@@ -169,7 +179,7 @@ export function ContactInfoRenderer({
               « bientôt », grisée et sans lien — jamais un lien mort
               (invariant nº 2). Aucune condition à ajouter ici.
             */}
-            {content.showSocial ? <SocialLinks /> : null}
+            {content.showSocial ? <SocialLinks socials={socials} /> : null}
           </div>
         </Reveal>
       ) : null}

@@ -1,10 +1,10 @@
 import { FaFacebookF, FaInstagram, FaTiktok } from "react-icons/fa6";
 import type { IconType } from "react-icons";
 
-import { socials } from "@/lib/site-config";
+import type { SocialsSettings } from "@/core/cms/entities/site-settings";
 import { cn } from "@/lib/utils";
 
-const ICONS: Record<keyof typeof socials, IconType> = {
+const ICONS: Record<keyof SocialsSettings, IconType> = {
   facebook: FaFacebookF,
   instagram: FaInstagram,
   tiktok: FaTiktok,
@@ -13,14 +13,24 @@ const ICONS: Record<keyof typeof socials, IconType> = {
 /**
  * Réseaux sociaux — absents de l'ancien site (constat #7 de l'audit).
  *
- * Tant qu'une URL n'est pas renseignée dans les variables d'environnement,
- * l'emplacement est visible mais **non cliquable** : un lien mort coûte plus
- * cher en crédibilité qu'une icône grisée annoncée comme « à venir ».
+ * Tant qu'un compte n'est pas coché « créé » dans les réglages (§10.2 du
+ * Rapport 2, groupe `socials`), l'emplacement est visible mais **non
+ * cliquable** : un lien mort coûte plus cher en crédibilité qu'une icône
+ * grisée annoncée comme « à venir ».
+ *
+ * `socials` est une PROP depuis le Lot 10 — plus une constante importée de
+ * `site-config.ts` — parce que ce composant est rendu à la fois par
+ * `<SiteFooter>` (Server Component) et par `<HeaderShell>` (Client
+ * Component, menu mobile) : un Client Component ne peut pas appeler
+ * `getSocialsSettings()`, qui est `server-only`. La donnée est lue UNE fois,
+ * dans `(site)/layout.tsx`, et redescend par les props.
  */
 export function SocialLinks({
+  socials,
   tone = "light",
   className,
 }: {
+  socials: SocialsSettings;
   /** `dark` : posé sur un fond bleu nuit (footer). */
   tone?: "light" | "dark";
   className?: string;
@@ -29,7 +39,7 @@ export function SocialLinks({
 
   return (
     <ul className={cn("flex items-center gap-2", className)}>
-      {(Object.keys(socials) as (keyof typeof socials)[]).map((key) => {
+      {(Object.keys(socials) as (keyof SocialsSettings)[]).map((key) => {
         const social = socials[key];
         const Icon = ICONS[key];
 

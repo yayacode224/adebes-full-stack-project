@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
-import { mainNav } from "@/lib/navigation";
+import { getVisibleNavigation } from "@/server/queries/navigation.query";
 
 export const metadata: Metadata = {
   title: "Page introuvable",
@@ -17,8 +17,17 @@ export const metadata: Metadata = {
  * Une page d'erreur qui se contente d'annoncer l'échec fait perdre le
  * visiteur. Celle-ci propose immédiatement les destinations utiles — et
  * notamment les deux parcours de conversion.
+ *
+ * ⚠️  `force-dynamic` — TRANSITOIRE, À RETIRER AU LOT 15 : sans elle, la
+ * liste de liens serait figée au build (mesuré : `○ /_not-found`) et une
+ * entrée de menu ajoutée, renommée ou masquée depuis le dashboard n'y
+ * apparaîtrait qu'au prochain déploiement.
  */
-export default function NotFound() {
+export const dynamic = "force-dynamic";
+
+export default async function NotFound() {
+  const mainNav = await getVisibleNavigation("main");
+
   return (
     <Container size="narrow" className="flex flex-col items-center py-24 text-center lg:py-32">
       <span className="grid size-16 place-items-center rounded-2xl bg-primary/10 text-primary">
@@ -54,7 +63,7 @@ export default function NotFound() {
       <nav aria-label="Pages principales" className="mt-12 w-full border-t border-border pt-8">
         <ul className="flex flex-wrap justify-center gap-x-5 gap-y-2">
           {mainNav.slice(1).map((item) => (
-            <li key={item.href}>
+            <li key={item.id}>
               <Link
                 href={item.href}
                 className="inline-flex min-h-11 items-center rounded-md text-sm text-muted-foreground transition-colors hover:text-foreground"

@@ -1,4 +1,6 @@
 import { Logo } from "@/components/brand/logo";
+import { getVisibleNavigation } from "@/server/queries/navigation.query";
+import { getContactSettings, getSocialsSettings } from "@/server/queries/settings.query";
 
 import { HeaderShell } from "./header-shell";
 
@@ -19,13 +21,25 @@ import { HeaderShell } from "./header-shell";
  */
 const HEADER_LOGO = "h-10 sm:h-11 lg:h-12";
 
-export function SiteHeader() {
+export async function SiteHeader() {
+  const [mainNav, conversionNav, contact, socials] = await Promise.all([
+    getVisibleNavigation("main"),
+    getVisibleNavigation("conversion"),
+    getContactSettings(),
+    getSocialsSettings(),
+  ]);
+
   return (
     <HeaderShell
       logo={<Logo fetchPriority="high" className={HEADER_LOGO} />}
       logoWhite={
         <Logo variant="white" fetchPriority="high" className={HEADER_LOGO} />
       }
+      mainNav={mainNav}
+      conversionNav={conversionNav}
+      phoneE164={contact.phoneE164}
+      phoneDisplay={contact.phoneDisplay}
+      socials={socials}
     />
   );
 }

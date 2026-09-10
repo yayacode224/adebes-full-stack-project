@@ -23,6 +23,7 @@ import {
   getProgrammePublie,
   getProgrammesPublies,
 } from "@/server/queries/programmes.query";
+import { getContactSettings } from "@/server/queries/settings.query";
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -97,7 +98,10 @@ export default async function ProgrammePage(
   const programme = await getProgrammePublie(slug);
   if (!programme) notFound();
 
-  const tous = await getProgrammesPublies();
+  const [tous, contact] = await Promise.all([
+    getProgrammesPublies(),
+    getContactSettings(),
+  ]);
   const autres = tous.filter((p) => p.slug !== programme.slug).slice(0, 3);
 
   /*
@@ -298,6 +302,7 @@ export default async function ProgrammePage(
                     <Button asChild variant="whatsapp">
                       <a
                         href={whatsappLink(
+                          contact.phoneE164,
                           whatsappMessages.programme(programme.title),
                         )}
                         target="_blank"

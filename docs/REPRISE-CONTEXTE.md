@@ -49,7 +49,7 @@ mémoire sur leur contenu.
 
 ---
 
-## État au terme du Lot 9 — le constructeur de pages est livré
+## État au terme du Lot 10 — les réglages du site sont livrés et recettés
 
 ### Lots livrés et recettés
 
@@ -73,6 +73,7 @@ mémoire sur leur contenu.
 | 8H | Galerie de bout en bout : **premier lot dont la source de vérité était un DOSSIER**, migration réelle des 4 photos vers Storage + `media_assets` + `gallery_items`, catégories gérables (teinte comprise), 5 + 4 actions, 3 écrans, bascule de `/galerie` **entièrement statique**, et **3 correctifs hors périmètre dont un défaut réel de téléversement** | ✅ 124 tests purs + 74 sur base réelle + 80 HTTP + 101 parcours navigateur + 110 mesures responsive = **489, 0 échec** |
 | 8I | Documents de bout en bout — **DERNIER LOT DE LA SÉRIE 8** : `document_media_id` NULLABLE donc **aucune garde de publication**, `year` unique vérifiée dans le domaine, avertissement d'ordre propre à cette collection, 5 actions, 3 écrans, bascule de la section Documents de `/impact`, **premier usage réel de `<MediaPicker accept="document">`**, et **correction d'un défaut du SEED** (les 2 rapports étaient en `draft`) | ✅ 114 tests purs + 74 sur base réelle + 59 HTTP + 96 parcours navigateur + 132 mesures responsive = **475, 0 échec** |
 | 9 | Constructeur de pages : **17 blocs** (schéma + défauts + champs + rendu), registre coupé domaine/présentation (`satisfies`), éditeur 3 zones responsive (`/dashboard/pages`), 10 actions serveur, **migration du contenu réel des 10 pages éditoriales** dans 26 sections (3 visuels migrés en Storage), `/contact` laissée en code (aucun bloc ne reproduit sa mise en page) | ✅ 209 tests purs + 56 sur base réelle + 85 de migration validée section par section + 50 mesures responsive (0 débordement) = **400, 0 échec** — voir le détail plus bas |
+| 10 | Réglages du site : domaine + ports pour 5 groupes (`identity`, `contact`, `legal`, `socials`, `seo`) et la navigation (4 menus), 10 actions serveur, **6 écrans dashboard** (`/dashboard/reglages/*`), **rebranchement de 24 fichiers du site public** (layout racine, en-tête, pied de page, JSON-LD, manifest, formulaires, 5 pages) sur les réglages en base, `site-config.ts` conservé comme repli de build | ✅ `tsc`/`build`/`eslint` propres + 25 vérifications fonctionnelles réelles (lecture/écriture/RBAC) sur la base réelle + **54 vérifications HTTP et navigateur réelles** (clic sur les 6 écrans, glisser scénarisé, réordonnancement, 3 largeurs, cibles tactiles, rejeu `createAction` avec une session éditeur) = **79, 0 échec** — deux défauts réels trouvés et corrigés en cours de route, voir le détail plus bas |
 
 ### Environnement (déjà configuré, ne pas refaire)
 
@@ -2314,30 +2315,291 @@ qui ne touche pas `<DonationAmounts>` — et à traiter avant le Lot 16.
 
 ---
 
-## Prochaine étape : Lot 10 — réglages du site
+## Ce qu'a livré le Lot 10 (détail)
 
-Le Lot 10 est décrit au §10 du Rapport 2 : la Famille C, tout ce qui vient
-aujourd'hui de `src/lib/site-config.ts` (identité, contact, légal, réseaux,
-SEO, navigation) bascule vers `site_settings` et `navigation_items` — déjà
-seedés depuis le Lot 1, jamais encore lus par un écran de dashboard.
+§10 du Rapport 2 : la Famille C, tout ce qui vivait dans
+`src/lib/site-config.ts` et `src/lib/navigation.ts` bascule vers
+`site_settings` (cinq groupes : `identity`, `contact`, `legal`, `socials`,
+`seo` — `theme` reste au Lot 11, `features` hors périmètre) et
+`navigation_items` (quatre menus). Aucune migration SQL nouvelle : les deux
+tables et leur seed existaient depuis le Lot 1, jamais encore lues par un
+écran de dashboard ni par le site public.
 
-Ce que le Lot 9 lègue et qui compte pour le Lot 10 :
+### Fichiers
 
-- **`contact-info` existe mais n'est câblé nulle part** : c'est le bloc le
-  plus proche des réglages de contact, et son schéma (adresse/téléphone/e-mail
-  /horaires/réseaux/WhatsApp à afficher ou non) est un bon point de départ
-  pour la FORME des réglages du groupe `contact`, même si son rendu ne
-  convient pas à `/contact` telle qu'elle est aujourd'hui.
-- **Le groupe `legal` porte déjà `registrationNumber = '[À COMPLÉTER]'`**,
-  affiché en clair dans la section Gouvernance migrée de `/a-propos` — la
-  première fois qu'un écran de réglages pourra faire disparaître ce marqueur
-  d'un site déjà public, plutôt que de le contourner par un commit.
-- **`donation-options` a un champ `showAmounts`** qui suppose l'existence
-  future de réglages de don (montants suggérés, en francs CFA) — explicitement
-  renvoyés au Lot 10 dans son en-tête.
-- **Le sélecteur de blocs, l'éditeur de pages et les dix Renderer restent à
-  éprouver au clic** (point de vigilance ci-dessus) — à ne pas laisser traîner
-  au-delà du Lot 10.
+- **Domaine** — `core/cms/entities/site-settings.ts` (cinq types + le
+  marqueur `SETTINGS_TODO_MARKER` + `toStoredText`/`toEditableText`),
+  `core/cms/entities/navigation-item.ts` ; `core/cms/schemas/settings/*.schema.ts`
+  (un par groupe) et `core/cms/schemas/navigation-item.schema.ts` ;
+  `core/cms/ports/settings.port.ts` et `navigation.port.ts`.
+- **Cas d'usage** — `core/use-cases/settings/update-*-settings.ts` (cinq,
+  passe-plats sauf `contact` et `legal` qui appliquent
+  `toStoredText`/`toEditableText`) ; `core/use-cases/navigation/*.ts` (création,
+  modification, suppression, réordonnancement PAR MENU, visibilité).
+- **Infrastructure** — `infrastructure/supabase/mappers/site-settings.mapper.ts`
+  (valide `value` au `schema.parse` à la LECTURE, gabarit de `parseContenu`
+  du Lot 9) et `navigation-item.mapper.ts` ; `repositories/settings.repository.ts`
+  et `navigation.repository.ts` ; `server/deps/settings.deps.ts` et
+  `navigation.deps.ts`.
+- **Actions et lectures publiques** — `server/actions/settings.actions.ts`
+  (cinq, permission unique `settings:update`) et `navigation.actions.ts`
+  (cinq, permissions `navigation:create/update/delete/reorder`) ;
+  `server/queries/settings.query.ts` et `navigation.query.ts` — les SEULES
+  lectures publiques du projet qui RATTRAPENT leur échec plutôt que de lever
+  (repli sur `site-config.ts`/`navigation.ts`, §10.3 l'exige explicitement).
+- **Dashboard** — six écrans sous `/dashboard/reglages/` (`layout.tsx` commun
+  + `page.tsx` = identité, `contact/`, `legal/`, `reseaux/`, `seo/`,
+  `navigation/`) et leurs composants dans `components/dashboard/settings/`
+  (cinq formulaires de réglages, `settings-tabs.tsx`, et le trio
+  `navigation-client.tsx` / `navigation-menu-list.tsx` /
+  `navigation-item-form-modal.tsx`). `server/dal/safe-read.ts` — nouveau
+  petit utilitaire partagé, voir l'écart plus bas.
+- **Site public rebranché** — layout racine (`generateMetadata`), `(site)/layout.tsx`,
+  `(site)/page.tsx`, en-tête (`header-shell.tsx` + `site-header.tsx`), pied de
+  page (`site-footer.tsx`), `social-links.tsx`, `sticky-mobile-action-bar.tsx`,
+  `cta-banner.tsx`, `home-hero.tsx`, `donation-amounts.tsx` +
+  `donation-options.renderer.tsx`, `contact-info.renderer.tsx`, `json-ld.tsx`,
+  `manifest.ts`, `not-found.tsx`, `app/actions/forms.ts`, et les pages
+  `/a-propos`, `/benevolat`, `/contact`, `/don`, `/mentions-legales`,
+  `/politique-confidentialite`, `/programmes/[slug]`, `/actualites/[slug]`.
+  `src/lib/site-config.ts` n'est PAS supprimé (§10.3) : `siteUrl` et les cinq
+  objets restent le repli de `settings.query.ts`/`navigation.query.ts`, et
+  `whatsappLink()` y perd son import module-level de `contact` — voir l'écart
+  ci-dessous.
+
+### Recette exécutée — deux couches, 79 vérifications, 0 échec
+
+- ✅ `npx tsc --noEmit`, `npm run build` (Turbopack) et `npx eslint .` — les
+  trois **zéro erreur, zéro avertissement**, exécutés une DERNIÈRE fois après
+  les deux corrections listées plus bas (règle « on enchaîne les suites avant
+  de conclure », découverte nº 63 du Lot 8I).
+- ✅ **25 vérifications fonctionnelles pures**, contre la base Supabase du
+  projet (client `service_role`, script compilé puis supprimé) : lecture des
+  cinq groupes, cycle écriture/lecture/restauration sur `identity.tagline`,
+  aller-retour RÉEL du marqueur `[À COMPLÉTER]` via `updateContactSettings`
+  (champ vidé → marqueur écrit → valeur d'origine restaurée), lecture des
+  quatre menus (8/2/2/0, conforme au seed), cycle complet
+  création/renommage/masquage/suppression sur une entrée jetable du menu
+  `footer` en passant par `createNavigationItem`, et un premier compte
+  `editor` réel confirmant le refus RLS.
+- ✅ **54 vérifications HTTP et navigateur réelles**, Chrome headless piloté
+  en CDP contre `npm start` (port 3210), deux comptes de recette (`admin`,
+  `editor`) créés par l'API admin puis connectés par le VRAI formulaire
+  `/connexion` (deux contextes de navigation distincts, découverte nº 36) :
+  - les cinq écrans `identity`/`contact`/`legal`/`seo`/`socials` : saisie
+    réelle d'un champ, clic sur « Enregistrer », **rechargement complet de la
+    page** pour confirmer la persistance côté serveur (pas seulement l'état
+    client), puis restauration par le même chemin — dix passages, zéro écart ;
+  - `socials` : cycle complet de la case « Ce compte a été créé » (cochée +
+    URL réelle → enregistrée → relue → décochée → enregistrée) ;
+  - `navigation` : bascule sur l'onglet « Pied de page », création de deux
+    entrées, vérification de l'ordre, réordonnancement par le bouton
+    « Descendre », masquage, **suppression des deux** avec confirmation, menu
+    revenu vide ;
+  - réactivité à 390 / 768 / 1280 px sur deux écrans (aucun débordement
+    horizontal) et cible tactile du bouton « Monter » (≥ 44 px) ;
+  - **barrière 1** (`proxy.ts`) : l'éditeur redirigé hors de
+    `/dashboard/reglages` par la seule navigation, sans qu'aucun JavaScript de
+    la page ne s'exécute ;
+  - **barrière 2** (`createAction`) : la requête `next-action` d'un clic RÉEL
+    de l'admin est capturée (§ méthode de recette, « identifiant Next-Action
+    capturé sur le clic de l'admin »), puis rejouée **octet pour octet** avec
+    les cookies de la session éditeur — réponse `FORBIDDEN`, valeur non
+    écrite, tagline réelle intacte.
+- Comptes de recette, lignes de test et 77 entrées d'audit produites par ces
+  deux comptes vérifiés absents après coup ; seul profil restant : celui de
+  l'utilisateur. La clé `connexion:::1` (limitation de débit) a été
+  remise à zéro en cours de route (5 tentatives/15 min atteintes par les
+  itérations successives du banc) — jamais une clé portant une adresse
+  réelle.
+
+### Deux défauts RÉELS trouvés par cette recette, et corrigés dans le code
+
+Aucun des deux n'était visible en appelant les cas d'usage directement (les
+25 vérifications pures les ont manqués) : il a fallu la VRAIE interface pour
+les faire apparaître.
+
+1. **`<NavigationMenuList>` n'affichait pas une entrée qu'on venait de créer,
+   sans rechargement manuel.** `router.refresh()` revalide l'arbre SERVEUR,
+   mais le composant garde sa propre liste dans un `useState`, initialisé une
+   fois au montage — une nouvelle valeur de prop après coup ne le remet pas à
+   jour (piège React classique, jamais rencontré avant ce lot : aucune liste
+   des Lots 8A–9 n'était gérée entièrement côté client sans passer par une
+   nouvelle page). Corrigé en faisant remonter l'entité créée ou modifiée
+   jusqu'à l'appelant (`onSaved(entreeEnregistree)` plutôt que `onSaved()`),
+   qui la fusionne dans sa liste locale — le même geste que `reorder`,
+   `delete` et `setVisibility` faisaient déjà.
+2. **`secondaryPhoneE164`/`secondaryPhoneDisplay` (`null` en base) devenaient
+   `""` au premier enregistrement du formulaire Contact, MÊME SUR UN CHAMP
+   SANS RAPPORT.** `ContactSettingsForm` affiche `?? ""` (un `<input>` ne
+   porte pas `null`), et rien ne faisait le trajet inverse à l'écriture — le
+   formulaire soumet toujours l'objet ENTIER. `updateContactSettings`
+   normalise désormais `""` en `null` à la sortie, comme il le fait déjà pour
+   le marqueur `[À COMPLÉTER]`. La valeur réelle en base a été restaurée à la
+   main (`null`) après le correctif.
+
+### Une découverte de méthode pour la recette navigateur du prochain lot
+
+**`Tabs.Trigger` de Radix (utilisé par `<NavigationClient>`) ignore
+`element.click()`, comme `DropdownMenu` avant lui (découverte nº 58).** Il
+active au `mousedown`, pas au `click` synthétique. Mesuré directement : un
+clic synthétique renvoie `true` (l'élément est trouvé) mais
+`aria-selected` ne change JAMAIS. La parade est la même que pour les menus :
+un clic RÉEL par `Input.dispatchMouseEvent` (pressed puis released) aux
+coordonnées du centre de l'élément, jamais `.click()`, sur tout composant
+Radix dont l'état ne bouge pas après un clic synthétique qui prétend avoir
+réussi.
+
+Deux leçons de méthode supplémentaires, propres à ce banc :
+
+- **Le texte d'un toast `sonner` ne suffit pas comme signal de succès d'une
+  action répétée dans une boucle** : le toast PRÉCÉDENT reste affiché
+  plusieurs secondes, et une recherche de sous-chaîne dans `body.innerText`
+  le trouve alors qu'aucune nouvelle requête n'a encore abouti (découverte
+  nº 47 à l'identique, une occurrence de plus). Le signal fiable est un
+  changement de DOM directement lié au succès — ici, la fermeture de la
+  modale (`onOpenChange(false)` n'est appelé que si l'action a réussi).
+- **Le texte de repli d'une confirmation n'est pas le texte réel.**
+  `<ConfirmDialog title={cible ? "Supprimer « X » ?" : "Supprimer cette
+  entrée ?"}>` : le second texte ne s'affiche QUE si la cible est nulle, ce
+  qui n'arrive jamais depuis un clic réel. Chercher le repli plutôt que le
+  motif commun aux deux (« Supprimer « ») fait échouer la recette sur une
+  fonctionnalité qui marche.
+
+### Un incident opérationnel, corrigé en quelques minutes
+
+Une première version du banc cherchait « le premier bouton `Masquer` » sans
+le borner à une ligne de test (découverte nº 57, oubliée une fois) — parce
+que la bascule vers l'onglet « Pied de page » avait silencieusement échoué
+(clic synthétique, voir plus haut), le clic a **réellement masqué « Accueil »
+dans le menu principal du site public**, en production, pendant quelques
+minutes. Détecté immédiatement par une lecture directe de `navigation_items`
+(`is_visible: false` sur `main`/position 1, là où huit lignes auraient dû
+être visibles), corrigé par un `UPDATE` ciblé avant toute autre action. Aucun
+visiteur signalé, aucune autre ligne touchée. Rappel pour tout banc futur :
+**borner un clic à son conteneur n'est pas une précaution optionnelle dès
+qu'on pilote un vrai navigateur contre la vraie base.**
+
+### Quelques écarts par rapport au plan initial
+
+1. **`SocialLinkSetting` est générique (`<Label extends string>`), pas
+   `{ label: string }`.** `socials.schema.ts` valide `label` par
+   `z.literal("Facebook")` (etc.), pour qu'un POST direct ne puisse pas
+   renommer un réseau. Une fonction `socialLinkSchema(labelFixe: string)`
+   aurait élargi ce littéral en `string` — c'est TypeScript, pas Zod, qui
+   l'exigeait : `<SchemaForm>` réclame un type d'entrée IDENTIQUE au type de
+   sortie, et `DefaultValues<T>` doit être aussi précis que `T`. La fonction
+   est donc `<L extends string>(labelFixe: L)`, et l'entité suit avec le même
+   littéral par réseau.
+2. **La case des réseaux sociaux est formulée à l'affirmative** (« Ce compte
+   a été créé ») plutôt qu'à la négative demandée mot pour mot par le §10.2
+   (« ce compte n'existe pas encore »). L'effet est identique — une icône
+   grisée « bientôt » quand elle est décochée, jamais un lien mort — la
+   formulation seule diffère, retenue parce qu'un `<Checkbox>` non coché se
+   lit plus naturellement comme « pas encore » que comme une double négation.
+3. **`site_settings.updated_by` a fait remonter un paramètre `actorId`
+   jusque dans les cas d'usage d'écriture** — aucune collection du Lot 8 n'en
+   a besoin, faute de colonne équivalente. `SettingsWritePort` est donc la
+   seule interface d'écriture du projet dont chaque méthode prend un second
+   paramètre, fourni par `createAction` (qui connaît déjà l'acteur pour le
+   journal d'audit).
+4. **Pas de triade création/modification/formulaire pour les cinq groupes de
+   réglages** — un seul schéma par groupe, qui sert à la fois de forme de
+   lecture, d'écriture ET de formulaire. `site_settings` n'a ni création ni
+   suppression : la ligne existe depuis le seed pour toujours, il n'y a que
+   la modification à valider.
+5. **`<SettingsTabs>` (six onglets, vraies routes) n'utilise PAS le
+   `<Tabs>` de Radix** que l'éditeur de pages du Lot 9 avait introduit — ce
+   sont des `<Link>` stylés en onglets, avec défilement horizontal contenu
+   (`overflow-x-auto` sur le conteneur, jamais sur la page). `<Tabs>` de
+   Radix EST employé pour les quatre menus DANS l'écran Navigation
+   (`<NavigationClient>`) : ceux-là ne sont pas des routes, c'est un contenu
+   qui remplace un autre sans navigation — l'usage que `role="tablist"`
+   décrit réellement. C'est CE composant dont le clic synthétique échoue —
+   voir la découverte de méthode ci-dessus.
+6. **Cinq pages publiques gagnent `export const dynamic = "force-dynamic"`
+   qu'elles n'avaient pas** : `/contact`, `/mentions-legales`,
+   `/politique-confidentialite`, `/manifest.ts`, `/_not-found`. Mesuré au
+   premier `npm run build` — les cinq étaient rendues `○` (statique), ce qui
+   aurait figé au build les valeurs venues des réglages. Même raisonnement
+   que `(site)/page.tsx` au Lot 9, appliqué à des pages que ce lot n'avait
+   pas anticipées comme concernées.
+7. **`server/dal/safe-read.ts` (fonction `lireOuErreur`) est un ajout
+   d'infrastructure imprévu**, causé par une règle ESLint jamais rencontrée
+   avant ce lot : `react-hooks/error-boundaries` refuse qu'un composant soit
+   construit à l'intérieur d'un `try`/`catch` (React ne rend la JSX qu'après
+   coup, une erreur de RENDU échapperait au `catch`). Les six écrans de
+   réglages lisent un port qui peut lever AVANT de construire leur JSX — un
+   cas que les Lots 8A–9 n'ont jamais eu, parce que leurs pages appellent
+   toutes un cas d'usage qui renvoie un `Result`, jamais un port qui lève
+   directement. La fonction sépare la lecture (dans son `try`) du choix de la
+   JSX à rendre (après) ; les six pages l'utilisent toutes.
+
+### Une découverte de méthode, pour la recette du prochain lot
+
+**`import "server-only"` lève INCONDITIONNELLEMENT sous un `require()` nu.**
+Le garde-fou n'est pas décoratif comme dans les lots précédents où il
+suffisait de compiler et d'exécuter : ce paquet a une condition d'export
+`react-server` que seul un bundler (Next/webpack/Turbopack) résout vers un
+module vide ; sous `node` pur, sa résolution « main » lève dès le premier
+`require`. Tout script de recette qui importe un fichier de `core/` ou
+`infrastructure/` portant cette ligne (la quasi-totalité) doit neutraliser
+`require.cache[require.resolve("server-only")]` AVANT de charger le code
+compilé — sans quoi le banc échoue avant d'avoir rien testé. Absent des
+`Découvertes de terrain` numérotées (§Lots 8x) faute d'y avoir été rencontré
+plus tôt : les scripts de ces lots-là ne touchaient pas encore de fichiers
+`server/queries/` ou `server/deps/`, tous marqués `server-only` depuis le
+Lot 4.
+
+### Points de vigilance légués
+
+- **`error.tsx`, `(auth)/layout.tsx` et `components/brand/logo.tsx`
+  continuent de lire `siteConfig`/`contact` statiquement, par choix.** Le
+  premier est un Client Component (impossible d'y appeler une lecture
+  `server-only`) ; les deux autres sont des textes décoratifs (attribut
+  `alt`, légende d'écran de connexion) dont la mise à jour depuis le
+  dashboard n'apporterait rien de visible. Ne pas les « corriger » en les
+  rebranchant sans raison : ce sont les seules exceptions volontaires
+  du Lot 10.
+- **`src/lib/navigation.ts` (`mainNav`, `conversionNav`, `legalNav`,
+  `isActivePath`, `hasOverlayHero`) n'est pas supprimé** : les deux premières
+  fonctions restent utilisées par `header-shell.tsx`, et les trois tableaux
+  restent le repli de `navigation.query.ts`. Un menu `footer` existe
+  désormais en base sans équivalent statique — son repli est un tableau vide,
+  jamais une exception.
+- **La modale de navigation n'a pas de garde « quitter sans enregistrer »**
+  (`<FormModal isDirty>` non branché — voir le fichier lui-même) : cinq
+  champs courts, jugé sans conséquence, mais à revoir si ce formulaire
+  grossit un jour.
+
+---
+
+## Prochaine étape : Lot 11 — éditeur de thème
+
+Décrit au §11 du Rapport 2 : le groupe `theme` de
+`site_settings` (vide depuis le seed, `'{}'::jsonb`) reçoit les tokens de
+`globals.css`, une injection serveur (`<style>` dans le HTML initial, jamais
+en JavaScript après hydratation — un flash de couleurs par défaut sinon),
+un contrôle de contraste EN DIRECT sur les couples critiques, et une liste
+FERMÉE de polices (contrainte réelle de `next/font/google`, littéraux
+requis au build).
+
+Ce que le Lot 10 lègue et qui compte pour le Lot 11 :
+
+- **`SupabaseSettingsRepository` et `settings.query.ts` ont déjà la forme
+  qu'un sixième groupe `theme` réutilisera** : une méthode `getTheme`/
+  `updateTheme` de plus, un schéma de plus dans `core/cms/schemas/settings/`,
+  un repli de plus dans `settings.query.ts`. Aucune des cinq méthodes
+  existantes n'a à changer.
+- **`<SettingsTabs>` porte déjà l'onglet « Thème » ? Non** — la barre
+  n'énumère que les cinq groupes de ce lot plus Navigation ; `Thème` a sa
+  propre entrée de barre latérale (`/dashboard/reglages/theme`, déjà déclarée
+  au Lot 5) mais n'apparaîtra dans `<SettingsTabs>` que si le Lot 11 choisit
+  de l'y ajouter — à décider en ouvrant le lot, pas ici.
+- **Le marqueur `[À COMPLÉTER]` et `toStoredText`/`toEditableText` ne
+  concernent QUE `contact` et `legal`** : aucune couleur ni police n'a de
+  raison d'être « à compléter », le Lot 11 n'a donc pas à réutiliser ce
+  mécanisme.
 
 ---
 

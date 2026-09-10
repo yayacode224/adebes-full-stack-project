@@ -1,4 +1,10 @@
-import { contact, legal, siteConfig, siteUrl, socials } from "@/lib/site-config";
+import type {
+  ContactSettings,
+  IdentitySettings,
+  LegalSettings,
+  SocialsSettings,
+} from "@/core/cms/entities/site-settings";
+import { siteUrl } from "@/lib/site-config";
 
 /**
  * Données structurées schema.org.
@@ -22,7 +28,24 @@ export function JsonLd({ data }: { data: Record<string, unknown> }) {
   );
 }
 
-export function ngoJsonLd() {
+/**
+ * §10.3 du Rapport 2 : les quatre groupes sont désormais des paramètres,
+ * lus par l'appelant via `server/queries/settings.query.ts`, plutôt que des
+ * constantes importées de `src/lib/site-config.ts`. Ce fichier n'a donc plus
+ * à connaître la source de la donnée — build-time ou base — ni son filet de
+ * repli, qui vit entièrement dans `settings.query.ts`.
+ */
+export function ngoJsonLd({
+  identity,
+  contact,
+  legal,
+  socials,
+}: {
+  identity: IdentitySettings;
+  contact: ContactSettings;
+  legal: LegalSettings;
+  socials: SocialsSettings;
+}) {
   const sameAs = Object.values(socials)
     .filter((s) => s.configured)
     .map((s) => s.href);
@@ -31,15 +54,15 @@ export function ngoJsonLd() {
     "@context": "https://schema.org",
     "@type": "NGO",
     "@id": `${siteUrl}/#organization`,
-    name: siteConfig.name,
-    legalName: siteConfig.legalName,
-    alternateName: siteConfig.legalName,
+    name: identity.name,
+    legalName: identity.legalName,
+    alternateName: identity.legalName,
     url: siteUrl,
     logo: `${siteUrl}/images/logo/logo-full-color.svg`,
     image: `${siteUrl}/images/logo/og-image.jpg`,
-    slogan: siteConfig.motto,
-    description: siteConfig.metaDescription,
-    foundingDate: String(siteConfig.foundingYear),
+    slogan: identity.motto,
+    description: identity.description,
+    foundingDate: String(identity.foundingYear),
     ...(sameAs.length > 0 ? { sameAs } : {}),
     address: {
       "@type": "PostalAddress",
@@ -77,13 +100,13 @@ export function ngoJsonLd() {
   };
 }
 
-export function websiteJsonLd() {
+export function websiteJsonLd({ identity }: { identity: IdentitySettings }) {
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
     "@id": `${siteUrl}/#website`,
     url: siteUrl,
-    name: siteConfig.name,
+    name: identity.name,
     inLanguage: "fr-CM",
     publisher: { "@id": `${siteUrl}/#organization` },
   };
@@ -95,12 +118,15 @@ export function articleJsonLd({
   slug,
   datePublished,
   image,
+  siteName,
 }: {
   title: string;
   description: string;
   slug: string;
   datePublished: string;
   image: string;
+  /** `identity.name` — voir l'en-tête de fichier. */
+  siteName: string;
 }) {
   return {
     "@context": "https://schema.org",
@@ -112,7 +138,7 @@ export function articleJsonLd({
     image: `${siteUrl}${image}`,
     mainEntityOfPage: `${siteUrl}/actualites/${slug}`,
     inLanguage: "fr-CM",
-    author: { "@type": "Organization", name: siteConfig.name },
+    author: { "@type": "Organization", name: siteName },
     publisher: { "@id": `${siteUrl}/#organization` },
   };
 }

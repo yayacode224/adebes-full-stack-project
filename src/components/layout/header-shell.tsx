@@ -15,13 +15,10 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import {
-  conversionNav,
-  hasOverlayHero,
-  isActivePath,
-  mainNav,
-} from "@/lib/navigation";
-import { contact, whatsappLink, whatsappMessages } from "@/lib/site-config";
+import type { NavigationItem } from "@/core/cms/entities/navigation-item";
+import type { SocialsSettings } from "@/core/cms/entities/site-settings";
+import { hasOverlayHero, isActivePath } from "@/lib/navigation";
+import { whatsappLink, whatsappMessages } from "@/lib/site-config";
 import { cn } from "@/lib/utils";
 
 import { Container } from "./container";
@@ -38,9 +35,20 @@ const ON_PHOTO =
 export function HeaderShell({
   logo,
   logoWhite,
+  mainNav,
+  conversionNav,
+  phoneE164,
+  phoneDisplay,
+  socials,
 }: {
   logo: ReactNode;
   logoWhite: ReactNode;
+  /** Lus par `<SiteHeader>` via `getVisibleNavigation()` (§10.3 du Rapport 2). */
+  mainNav: NavigationItem[];
+  conversionNav: NavigationItem[];
+  phoneE164: string;
+  phoneDisplay: string;
+  socials: SocialsSettings;
 }) {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
@@ -94,7 +102,7 @@ export function HeaderShell({
               {mainNav.map((item) => {
                 const active = isActivePath(pathname, item.href);
                 return (
-                  <li key={item.href}>
+                  <li key={item.id}>
                     <Link
                       href={item.href}
                       aria-current={active ? "page" : undefined}
@@ -190,7 +198,7 @@ export function HeaderShell({
                     {mainNav.map((item) => {
                       const active = isActivePath(pathname, item.href);
                       return (
-                        <li key={item.href}>
+                        <li key={item.id}>
                           <SheetClose asChild>
                             <Link
                               href={item.href}
@@ -221,7 +229,7 @@ export function HeaderShell({
                 <div className="border-t border-border px-5 py-4">
                   <div className="flex flex-col gap-2.5">
                     {conversionNav.map((item) => (
-                      <SheetClose asChild key={item.href}>
+                      <SheetClose asChild key={item.id}>
                         <Button
                           asChild
                           variant={
@@ -235,17 +243,17 @@ export function HeaderShell({
                     ))}
                     <Button asChild variant="whatsapp" className="w-full">
                       <a
-                        href={whatsappLink(whatsappMessages.contact)}
+                        href={whatsappLink(phoneE164, whatsappMessages.contact)}
                         target="_blank"
                         rel="noreferrer noopener"
                       >
-                        WhatsApp {contact.phoneDisplay}
+                        WhatsApp {phoneDisplay}
                       </a>
                     </Button>
                   </div>
 
                   <div className="mt-4 flex items-center justify-between">
-                    <SocialLinks />
+                    <SocialLinks socials={socials} />
                     <ThemeToggle />
                   </div>
                 </div>

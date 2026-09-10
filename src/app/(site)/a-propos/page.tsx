@@ -4,8 +4,8 @@ import { SectionsRenderer } from "@/components/blocks/section-renderer";
 import { PageHero } from "@/components/layout/page-hero";
 import { JsonLd, breadcrumbJsonLd } from "@/components/seo/json-ld";
 import { CTABanner } from "@/components/ui-ext/cta-banner";
-import { siteConfig } from "@/lib/site-config";
 import { getPagePublique } from "@/server/queries/pages.query";
+import { getIdentitySettings } from "@/server/queries/settings.query";
 
 export const metadata: Metadata = {
   title: "Qui sommes-nous",
@@ -62,7 +62,10 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function AProposPage() {
-  const page = await getPagePublique("/a-propos");
+  const [page, identite] = await Promise.all([
+    getPagePublique("/a-propos"),
+    getIdentitySettings(),
+  ]);
 
   return (
     <>
@@ -76,7 +79,7 @@ export default async function AProposPage() {
       <PageHero
         eyebrow="Qui sommes-nous"
         title="Une association née du terrain"
-        subtitle={siteConfig.description}
+        subtitle={identite.description}
         image="/images/hero/hero-a-propos.jpeg"
         imageAlt="Membres et bénévoles d'ADEBES au Cameroun"
         tone="navy"
