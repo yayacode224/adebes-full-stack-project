@@ -110,6 +110,23 @@ export async function signInAction(
 
   await writeAuthAuditLog({ actorId: data.user.id, action: "auth.login", email });
 
+  /*
+   * « Dernière connexion » de l'écran /dashboard/utilisateurs (§13.1).
+   *
+   * Best effort : la session vient d'être ouverte, `profiles_self_update`
+   * autorise l'écriture (seul `last_seen_at` change, le rôle est inchangé). Un
+   * échec est journalisé mais ne bloque pas la connexion — une date de dernière
+   * activité manquante est un défaut d'affichage, pas une panne d'accès.
+   */
+  const { error: erreurVue } = await supabase
+    .from("profiles")
+    .update({ last_seen_at: new Date().toISOString() })
+    .eq("id", data.user.id);
+
+  if (erreurVue) {
+    console.error("[ADEBES] Mise à jour de last_seen_at impossible", erreurVue);
+  }
+
   return { ok: true, data: { suivant: cheminDeRetour(suivant) } };
 }
 

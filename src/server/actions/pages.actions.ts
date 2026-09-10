@@ -12,10 +12,13 @@ import {
   updatePageSchema,
   updateSectionSchema,
 } from "@/core/cms/schemas/page.schema";
+import { restoreVersionSchema } from "@/core/cms/schemas/content-version.schema";
 import { createPage } from "@/core/use-cases/pages/create-page";
 import { deletePage } from "@/core/use-cases/pages/delete-page";
 import { setPageStatus } from "@/core/use-cases/pages/set-page-status";
 import { updatePage } from "@/core/use-cases/pages/update-page";
+import { recordVersion } from "@/core/use-cases/versions/record-version";
+import { restorePageVersion } from "@/core/use-cases/versions/restore-page-version";
 import { addSection } from "@/core/use-cases/sections/add-section";
 import { deleteSection } from "@/core/use-cases/sections/delete-section";
 import { duplicateSection } from "@/core/use-cases/sections/duplicate-section";
@@ -24,6 +27,7 @@ import { setSectionVisibility } from "@/core/use-cases/sections/set-section-visi
 import { updateSection } from "@/core/use-cases/sections/update-section";
 
 import { createAction } from "../action-kit/create-action";
+import { contentVersionDeps } from "../deps/content-version.deps";
 import { pageDeps } from "../deps/page.deps";
 import { etiquettesDePage } from "../queries/pages.query";
 
@@ -146,7 +150,16 @@ export const changerStatutPageAction = createAction<
   typeof setPageStatusSchema,
   Page
 >({
-  permission: "page:publish",
+  /*
+    §12.1 : `draft → in_review` est un geste de rédaction (`page:update`,
+    ouvert à l'éditeur) ; publier, archiver, dépublier exigent `page:publish`,
+    doublé par le trigger `pages_guard_publish` (ADB01). Le résolveur n'a que
+    la cible en main — il ouvre donc « À relire » et verrouille le reste.
+  */
+  permission: (entree) =>
+    (entree as { status?: string } | null)?.status === "in_review"
+      ? "page:update"
+      : "page:publish",
   input: setPageStatusSchema,
   audit: {
     action: "page.status",
@@ -154,7 +167,63 @@ export const changerStatutPageAction = createAction<
     entityId: (page) => page.id,
   },
   invalidates: (page) => etiquettesDePage(page.slug),
-  handler: async ({ input }) => setPageStatus(await pageDeps(), input),
+  handler: async ({ input, actor }) => {
+    const deps = await pageDeps();
+    const resultat = await setPageStatus(deps, input);
+
+    /*
+      §12.2 : publier une page en fige un instantané complet — la page ET ses
+      sections, dans l'ordre. L'échec de l'instantané est journalisé, jamais
+      propagé : la publication est déjà committée.
+    */
+    if (resultat.ok && resultat.value.status === "published") {
+      try {
+        const sections = await deps.sectionRead.findByPage(resultat.value.id);
+        await recordVersion(await contentVersionDeps(), {
+          entityType: "page",
+          entityId: resultat.value.id,
+          snapshot: { ...resultat.value, sections },
+          comment: "Publication",
+          createdBy: actor?.id ?? null,
+        });
+      } catch (erreur) {
+        console.error(
+          "[ADEBES] Instantané de version impossible après publication d'une page",
+          erreur,
+        );
+      }
+    }
+
+    return resultat;
+  },
+});
+
+/**
+ * Restaurer une page dans l'état d'une version antérieure (§12.2).
+ *
+ * `page:update` — ouvert à l'éditeur, comme la correction d'un titre ou d'une
+ * section. `restorePageVersion` ne touche ni au `status`, ni à l'adresse, ni
+ * aux sections ajoutées ou supprimées depuis l'instantané : il remet le contenu
+ * des sections encore présentes et les réglages de la page.
+ */
+export const restaurerVersionPageAction = createAction<
+  typeof restoreVersionSchema,
+  Page
+>({
+  permission: "page:update",
+  input: restoreVersionSchema,
+  audit: {
+    action: "page.restore_version",
+    entityType: "page",
+    entityId: (page) => page.id,
+  },
+  invalidates: (page) => etiquettesDePage(page.slug),
+  handler: async ({ input, actor }) =>
+    restorePageVersion(
+      { versions: await contentVersionDeps(), pages: await pageDeps() },
+      input.versionId,
+      actor?.id ?? null,
+    ),
 });
 
 /**

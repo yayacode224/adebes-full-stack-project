@@ -1,6 +1,15 @@
 "use client";
 
-import { ArrowUpFromLine, ExternalLink, Trash2, Undo2 } from "lucide-react";
+import {
+  ArrowUpFromLine,
+  ExternalLink,
+  Eye,
+  History,
+  SendHorizonal,
+  Trash2,
+  Undo2,
+} from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -55,10 +64,12 @@ import { ConfirmDialog } from "../modals/confirm-dialog";
  */
 export function PageActionBar({
   page,
+  peutModifier,
   peutPublier,
   peutSupprimer,
 }: {
   page: Page;
+  peutModifier: boolean;
   peutPublier: boolean;
   peutSupprimer: boolean;
 }) {
@@ -67,6 +78,8 @@ export function PageActionBar({
 
   const enLigne = page.status === "published";
   const previsualisable = enLigne && page.isSystem;
+  /** Brouillon qu'un rédacteur peut soumettre à relecture (§12.1). */
+  const soumissiblePourRelecture = page.status === "draft";
 
   async function changerStatut(status: ContentStatus) {
     const resultat = await changerStatutPageAction({ id: page.id, status });
@@ -77,9 +90,11 @@ export function PageActionBar({
     }
 
     toast.success(
-      status === "published"
-        ? "La page est en ligne."
-        : "La page n'est plus visible sur le site.",
+      status === "in_review"
+        ? "Page soumise à relecture. Un administrateur pourra la publier."
+        : status === "published"
+          ? "La page est en ligne."
+          : "La page n'est plus visible sur le site.",
     );
     router.refresh();
   }
@@ -112,12 +127,40 @@ export function PageActionBar({
         <StatusBadge status={page.status} />
 
         <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
+          {/* §12.3 — prévisualisation : le seul moyen de voir une page en
+              brouillon ou programmée telle qu'elle paraîtra. */}
+          <Button asChild variant="outline" className="min-h-11">
+            <a href={`/api/preview?chemin=${page.route}`}>
+              <Eye className="size-4" aria-hidden="true" />
+              Prévisualiser
+            </a>
+          </Button>
+
+          <Button asChild variant="outline" className="min-h-11">
+            <Link href={`/dashboard/pages/${page.id}/historique`}>
+              <History className="size-4" aria-hidden="true" />
+              Historique
+            </Link>
+          </Button>
+
           {previsualisable ? (
             <Button asChild variant="outline" className="min-h-11">
               <a href={page.route} target="_blank" rel="noreferrer noopener">
                 <ExternalLink className="size-4" aria-hidden="true" />
                 Voir sur le site
               </a>
+            </Button>
+          ) : null}
+
+          {peutModifier && soumissiblePourRelecture ? (
+            <Button
+              type="button"
+              variant={peutPublier ? "outline" : "default"}
+              className="min-h-11"
+              onClick={() => void changerStatut("in_review")}
+            >
+              <SendHorizonal className="size-4" aria-hidden="true" />
+              Soumettre à relecture
             </Button>
           ) : null}
 

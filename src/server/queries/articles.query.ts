@@ -14,6 +14,8 @@ import { createPublicClient } from "@/infrastructure/supabase/clients/public";
 import { SupabaseArticleCategoryRepository } from "@/infrastructure/supabase/repositories/article-category.repository";
 import { SupabaseArticleRepository } from "@/infrastructure/supabase/repositories/article.repository";
 
+import { lireArticlePrevisualisation, previewActif } from "../preview/read";
+
 /**
  * ═══════════════════════════════════════════════════════════════════════════
  *  LECTURES PUBLIQUES DES ACTUALITÉS
@@ -110,6 +112,14 @@ export const getArticlesPublies = cache(async (): Promise<Article[]> => {
  */
 export const getArticlePublie = cache(
   async (slug: string): Promise<Article | null> => {
+    // §12.3 : en prévisualisation, on sert le brouillon (ou l'article
+    // programmé) tel quel, lu avec une session de personnel. Hors
+    // prévisualisation, la branche publique ci-dessous — client anonyme,
+    // filtre de statut et de date — est la seule empruntée.
+    if (await previewActif()) {
+      return lireArticlePrevisualisation(slug);
+    }
+
     const resultat = await getPublishedArticleBySlug(portPublic(), slug);
 
     if (resultat.ok) return resultat.value;

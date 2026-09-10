@@ -1,6 +1,15 @@
 "use client";
 
-import { ArrowUpFromLine, CalendarClock, ExternalLink, Trash2, Undo2 } from "lucide-react";
+import {
+  ArrowUpFromLine,
+  CalendarClock,
+  ExternalLink,
+  Eye,
+  History,
+  SendHorizonal,
+  Trash2,
+  Undo2,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -68,6 +77,8 @@ export function ArticleEditeur({
   const programme = enLigne && estAVenir(article.publishedAt);
   /** Publié ET échu : la seule combinaison réellement visible du public. */
   const visible = enLigne && !programme;
+  /** Brouillon qu'un rédacteur peut soumettre à relecture (§12.1). */
+  const soumissiblePourRelecture = article.status === "draft";
 
   async function changerStatut(status: ContentStatus) {
     const resultat = await changerStatutArticleAction({ id: article.id, status });
@@ -79,7 +90,11 @@ export function ArticleEditeur({
 
     const datePrevue = resultat.data.publishedAt;
 
-    if (status !== "published") {
+    if (status === "in_review") {
+      toast.success(
+        "Article soumis à relecture. Un administrateur pourra le publier.",
+      );
+    } else if (status !== "published") {
       toast.success("L'article n'est plus visible sur le site.");
     } else if (datePrevue && estAVenir(datePrevue)) {
       toast.success(
@@ -125,6 +140,35 @@ export function ArticleEditeur({
             ) : null}
 
             {/*
+              §12.1 — soumettre à relecture. Ouvert au rédacteur (`article:
+              update`) ; pour un administrateur, c'est un raccourci vers le
+              circuit de relecture plutôt que la publication directe.
+            */}
+            {peutModifier && soumissiblePourRelecture ? (
+              <Button
+                type="button"
+                variant={peutPublier ? "outline" : "default"}
+                onClick={() => void changerStatut("in_review")}
+              >
+                <SendHorizonal className="size-4" aria-hidden="true" />
+                Soumettre à relecture
+              </Button>
+            ) : null}
+
+            {/*
+              §12.3 — prévisualisation. Ouvre le mode brouillon puis la page :
+              c'est le seul moyen de voir un brouillon ou un article programmé
+              tel qu'il paraîtra. `<a>` et non `<Link>` : la route ne doit pas
+              être préchargée.
+            */}
+            <Button asChild variant="outline">
+              <a href={`/api/preview?chemin=/actualites/${article.slug}`}>
+                <Eye className="size-4" aria-hidden="true" />
+                Prévisualiser
+              </a>
+            </Button>
+
+            {/*
               Le lien « Voir sur le site » n'apparaît que si la page RÉPOND.
               Sur un article programmé, elle renvoie une 404 : proposer le lien
               ferait passer un comportement voulu pour une erreur.
@@ -141,6 +185,13 @@ export function ArticleEditeur({
                 </a>
               </Button>
             ) : null}
+
+            <Button asChild variant="outline">
+              <Link href={`/dashboard/actualites/${article.id}/historique`}>
+                <History className="size-4" aria-hidden="true" />
+                Historique
+              </Link>
+            </Button>
 
             {peutSupprimer ? (
               <Button
@@ -172,8 +223,10 @@ export function ArticleEditeur({
             explication passe pour une panne (§12 du Rapport 1).
           */
           <p className="text-sm text-muted-foreground">
-            La mise en ligne est réservée aux administrateurs. Vos modifications
-            sont enregistrées et leur seront soumises.
+            La mise en ligne est réservée aux administrateurs.{" "}
+            {soumissiblePourRelecture
+              ? "Quand l'article est prêt, soumettez-le à relecture."
+              : "Vos modifications sont enregistrées et leur seront soumises."}
           </p>
         ) : null}
       </div>

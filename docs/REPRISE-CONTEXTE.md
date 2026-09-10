@@ -49,7 +49,7 @@ mémoire sur leur contenu.
 
 ---
 
-## État au terme du Lot 11 — l'éditeur de thème est livré et recetté
+## État au terme du Lot 13 — utilisateurs et journal d'audit livrés et recettés
 
 ### Lots livrés et recettés
 
@@ -75,6 +75,8 @@ mémoire sur leur contenu.
 | 9 | Constructeur de pages : **17 blocs** (schéma + défauts + champs + rendu), registre coupé domaine/présentation (`satisfies`), éditeur 3 zones responsive (`/dashboard/pages`), 10 actions serveur, **migration du contenu réel des 10 pages éditoriales** dans 26 sections (3 visuels migrés en Storage), `/contact` laissée en code (aucun bloc ne reproduit sa mise en page) | ✅ 209 tests purs + 56 sur base réelle + 85 de migration validée section par section + 50 mesures responsive (0 débordement) = **400, 0 échec** — voir le détail plus bas |
 | 10 | Réglages du site : domaine + ports pour 5 groupes (`identity`, `contact`, `legal`, `socials`, `seo`) et la navigation (4 menus), 10 actions serveur, **6 écrans dashboard** (`/dashboard/reglages/*`), **rebranchement de 24 fichiers du site public** (layout racine, en-tête, pied de page, JSON-LD, manifest, formulaires, 5 pages) sur les réglages en base, `site-config.ts` conservé comme repli de build | ✅ `tsc`/`build`/`eslint` propres + 25 vérifications fonctionnelles réelles (lecture/écriture/RBAC) sur la base réelle + **54 vérifications HTTP et navigateur réelles** (clic sur les 6 écrans, glisser scénarisé, réordonnancement, 3 largeurs, cibles tactiles, rejeu `createAction` avec une session éditeur) = **79, 0 échec** — deux défauts réels trouvés et corrigés en cours de route, voir le détail plus bas |
 | 11 | Éditeur de thème : sixième groupe `theme` de `site_settings` (couleurs de marque, interface claire, interface sombre, rayon, couple de polices), schéma à **double garde** (assainissement `#hex`/`oklch()`/`color-mix` + contraste des couples critiques rejoué en `superRefine`), `src/lib/fonts.ts` (liste FERMÉE de 6 polices `next/font`, 4 en `preload: false`), **injection serveur d'un `<style>`** dans le HTML de `(site)` (jamais en JS — aucun flash), 7ᵉ écran dashboard avec aperçu clair/sombre vivant et ratio de contraste en direct qui **bloque l'enregistrement** sous 4,5:1, bouton « Rétablir les couleurs d'origine ADEBES », `globals.css` retouché (tokens de marque et de police adossés à des variables `:root` réinscriptibles) | ✅ `tsc`/`build`/`eslint` propres + **59 vérifications de la couche domaine pure** (assainissement, contraste WCAG, `buildThemeCss`, fusion des valeurs d'origine sur la ligne `{}`) + **49 vérifications HTTP et navigateur réelles** (les 7 points de la recette du §11 : `--primary` change les boutons du site, aucun flash dans le HTML brut, couple 3:1 refusé et expliqué, « Rétablir » exact, mode sombre indépendant, valeur hostile rejetée à la validation — au formulaire ET en rejeu HTTP falsifié —, empilement + ratio visibles à 390 px ; plus onglet, garde proxy éditeur, `updated_by`, journal d'audit) = **108, 0 échec** — voir le détail plus bas |
+| 12 | Workflow éditorial : `createAction` accepte une **permission résolue à partir de l'entrée** (`draft → in_review` ouvert à l'éditeur, tout le reste `<r>:publish`), sous-système de **versionnage** (entité + ports + dépôt `content_versions` + cas d'usage `recordVersion`/`listVersions`/`restore*`, rétention **20** avec purge), **instantané à chaque publication** d'un article ou d'une page (page + ses sections), écrans **`/dashboard/…/[id]/historique`** (comparaison champ par champ, restauration) pour Actualités et Pages, **prévisualisation** (`/api/preview` + `/api/preview/exit` + `<PreviewBanner>` dans `(site)`, lectures authentifiées de `server/preview/`), **publication programmée** (filtre `published_at <= now()` porté par les cas d'usage publics, `/api/cron/publish` protégé par `CRON_SECRET`, `vercel.json`) | ✅ `tsc`/`build`/`eslint` propres + **43 vérifications de la couche domaine pure** (`diffSnapshot`, transitions et leur permission, schémas, `recordVersion` + purge à 20, `restoreArticleVersion` remet le contenu sans toucher au statut, `getPagePubliee` filtre la date future) + **64 vérifications HTTP et navigateur réelles** (les 6 points de la recette du §12 : un éditeur soumet à relecture mais pas publie — au formulaire ET en rejeu `next-action` falsifié —, publier crée une version, restaurer remet le contenu, au-delà de 20 la purge s'exécute, prévisualisation qui affiche le brouillon / anonyme qui ne le voit pas, bannière + « Quitter », article daté dans le futur invisible puis cron ; plus le workflow répliqué sur les Pages, éditeur qui consulte l'historique, `/api/preview/exit` idempotent) = **107, 0 échec** — voir le détail plus bas |
+| 13 | Utilisateurs et journal d'audit : écran **`/dashboard/utilisateurs`** (annuaire, invitation via `auth.admin.inviteUserByEmail()`, changement de rôle / activation / suppression **réservés `super_admin`** — matrice + RLS + trigger `guard_last_super_admin`), garde-fous « pas son propre rôle » / « pas se désactiver » dans les cas d'usage, `last_seen_at` écrit à la connexion ; écran **`/dashboard/journal`** en lecture seule (filtres auteur / type / action / période **en base**, différentiel repliable, cartes chronologiques) ; `createAction` **enregistre désormais un `diff`** (l'entrée validée, ou un résolveur `audit.diff`) ; **`/api/cron/purge`** (rétention 180 j, `CRON_SECRET`, 6ᵉ usage documenté de `createAdminClient`) + 2ᵉ cron `vercel.json` | ✅ `tsc`/`build`/`eslint` propres + **55 vérifications de la couche domaine pure** (`refuseSiDernierSuperAdmin` + `changeUserRole`/`setUserActive`/`deleteUser` → VALIDATION « soi-même » et CONFLICT « dernier super_admin » avec la **formule exacte de la base**, schémas d'invitation/rôle/filtres, libellés d'actions et repli, `AUDIT_RETENTION_DAYS = 180`) + **47 vérifications HTTP et navigateur réelles** (éditeur exclu du journal ET des utilisateurs — redirection + barre latérale + rejeu `next-action` → FORBIDDEN ; admin qui voit l'annuaire mais **aucun menu d'action** + rejeu « changer le rôle » / « désactiver » → FORBIDDEN ; changer SON rôle / SE désactiver → VALIDATION ; désactiver un compte le **déconnecte à la requête suivante** ; `last_seen_at` renseigné ; le journal porte auteur + horodatage + différentiel `{ actif }` ; filtres `?action=` / `?auteur=` en base ; **390 px** : cartes `<li>`, `<pre>` en `overflow-x: auto`, pas de débordement de page ; `/api/cron/purge` 401/401/200 `{ retentionDays: 180 }`) = **102, 0 échec** — voir le détail plus bas |
 
 ### Environnement (déjà configuré, ne pas refaire)
 
@@ -411,6 +413,7 @@ Chacun est documenté dans le code concerné.
 | 62 | La garde ESLint du barrel passe de `patterns` à `paths` | **Le motif interdisait l'import qu'il devait autoriser.** Les `patterns` de `no-restricted-imports` suivent la sémantique .gitignore : un motif finissant par `supabase/clients` désigne le DOSSIER et tout son contenu — donc aussi `clients/public`, le seul import légitime de `server/queries/`. Le défaut a dormi depuis le Lot 0, faute d'un fichier pour l'exercer. `paths` compare la chaîne exacte. Revérifié : les trois imports interdits sont bloqués, `clients/public` passe. |
 | 63 | `<PageHero>` gagne une prop `imageNode` | Quand une couverture vient de la médiathèque, elle se rend avec `<CmsImage>` et non `<MediaImage>`. Passer le JSX déjà construit évite au hero d'apprendre ce qu'est un `MediaAsset`. `image`/`imageAlt` restent obligatoires : ils sont le repli. |
 | 64 | **`src/lib/programme-visuels.ts`** — repli transitoire vers `/public` | `media_assets` est vide et tous les `cover_media_id` valent `NULL`. Basculer sans repli aurait remplacé huit photographies par huit aplats de couleur, alors que la recette du §8A exige un rendu « identique à l'actuel ». Priorité déclarée : média choisi → fichier livré dans `/public` → `MediaPlaceholder`. `content/programmes.ts` ré-exporte les deux fonctions (patron de l'écart nº 6). **À retirer au Lot 15, une fois les visuels réels téléversés.** |
+| 66 | **Lot 13** : `createAction` écrit un `diff` par défaut = l'entrée validée ; `createAdminClient` gagne un **6ᵉ usage** (purge de rétention du journal) | Le §13.3 veut « le différentiel des champs modifiés » sur chaque entrée. La charge utile validée EST cette liste pour la quasi-totalité des mutations ; une action ne fournit un résolveur `audit.diff` que pour un différentiel plus parlant (`{ de, vers }` d'un changement de rôle). Aplati en JSON sûr avant écriture. — La purge 180 j passe par `service_role` parce qu'`audit_logs` n'a **aucune** politique de `delete` (0009) : même nature que l'usage nº 3 (écriture du journal). Consigné aussi dans `clients/admin.ts`. |
 | 65 | **Correctifs hors périmètre** : trois défauts de Lot 6 trouvés par la recette responsive | (a) `table-view.tsx` reçoit `relative` sur son conteneur défilant — sans lui, le `<span class="sr-only">Ordre</span>` en `position: absolute` prenait le bloc conteneur INITIAL, échappait au découpage et faisait défiler la PAGE de 248 px à 1024 px ; (b) les trois cases à cocher du `<DataTable>` faisaient 16 px de cible réelle (40 × 32 avec leur `::after`) — `CIBLE_44` les porte à 44 × 44 sans rien déplacer ; (c) « Monter » / « Descendre » d'un champ `list` faisaient 32 px empilés — ils passent côte à côte en 44 px, la ligne se coupant (`flex-wrap`) quand la largeur manque. Les trois dormaient depuis le Lot 6 : aucun écran n'avait encore de tableau plus large que son conteneur, ni de sélection multiple réelle, ni de champ `list`. |
 
 ### Écarts du Lot 8B
@@ -2709,6 +2712,380 @@ zéro avertissement. `/dashboard/reglages/theme` est `ƒ` (rendu à la demande).
   le schéma d'écriture semble suffisant (défense en profondeur, §11.3).
 - **`features` est le dernier groupe de `site_settings` sans code.** Hors
   périmètre, ligne `{}` depuis le seed, aucune méthode de port.
+
+---
+
+## Ce qu'a livré le Lot 12 (détail)
+
+**Objectif du §12 du Rapport 2 : brouillon → relecture → publication, historique
+restaurable, prévisualisation, publication programmée.** Livré avec Actualités
+et Pages comme implémentation de référence (choix explicite : les six autres
+collections héritent des transitions ; leur écran d'historique est un lot de
+suivi).
+
+### Fichiers
+
+| Fichier | Rôle |
+|---|---|
+| `src/core/cms/entities/content-version.ts` | **NOUVEAU.** `ContentVersion`, `VERSION_RETENTION = 20`, `VERSIONED_ENTITY_TYPES = ["article","page"]`, `diffSnapshot(version, actuel, only?)` (ignore `id`/`createdAt`/`updatedAt`, rend un tableau de chaînes joint par `\n\n`) |
+| `src/core/cms/ports/content-version.port.ts` | **NOUVEAU.** `ContentVersionReadPort` (`listForEntity`, `findById`) / `WritePort` (`record` — numérote —, `pruneToLast`) / `Deps` |
+| `src/core/cms/schemas/content-version.schema.ts` | **NOUVEAU.** `listVersionsSchema`, `restoreVersionSchema` (ne porte QUE `versionId`), `pageSnapshotSchema` (= `pageSchema` + `sections[]`) |
+| `src/core/use-cases/versions/record-version.ts` | **NOUVEAU.** Instantané puis purge. Ne fait jamais échouer l'appelant (la publication est committée) |
+| `src/core/use-cases/versions/list-versions.ts` | **NOUVEAU.** Lecture seule |
+| `src/core/use-cases/versions/restore-article-version.ts` | **NOUVEAU.** Remet titre/chapô/corps/catégorie/couverture/adresse ; **ne touche ni `status` ni `publishedAt`** ; passe par `updateArticle` (réutilise l'unicité du slug) ; réenregistre une version « Restauration de la version N » |
+| `src/core/use-cases/versions/restore-page-version.ts` | **NOUVEAU.** Réglages de page + contenu/visibilité des sections **encore présentes** (repérées par id) ; ne recrée pas une section supprimée, ne retire pas une section ajoutée, ne rétablit pas l'ordre — l'écran le dit |
+| `src/infrastructure/supabase/mappers/content-version.mapper.ts` | **NOUVEAU.** `snapshot` traverse en `unknown`, jamais en `Json` typé |
+| `src/infrastructure/supabase/repositories/content-version.repository.ts` | **NOUVEAU.** `record` calcule `dernier + 1` et **réessaie une fois sur `23505`** ; `pruneToLast` supprime sous le seuil du 20ᵉ numéro |
+| `src/server/deps/content-version.deps.ts` | **NOUVEAU.** `contentVersionDeps()` / `contentVersionReadPort()` — non importable depuis `server/queries/` |
+| `src/server/preview/read.ts` | **NOUVEAU.** `previewActif()` (= `draftMode().isEnabled` **et** session de personnel), `lireArticlePrevisualisation`, `lirePagePrevisualisation` (client AUTHENTIFIÉ ; hors `server/queries/` — voir écart) |
+| `src/app/api/preview/route.ts` | **NOUVEAU.** `GET` — garde `page:read`, `chemin` interne uniquement, `draftMode().enable()`, `redirect(chemin)` |
+| `src/app/api/preview/exit/route.ts` | **NOUVEAU.** `GET` — `draftMode().disable()`, `redirect` vers `chemin` interne ou `/` |
+| `src/app/api/cron/publish/route.ts` | **NOUVEAU.** `GET` — `Authorization: Bearer $CRON_SECRET` (500 si non configuré, 401 sinon), scanne les contenus échus depuis 25 h, `revalidateTag(tag, "max")`, renvoie `{ released, revalidated }` |
+| `src/components/layout/preview-banner.tsx` | **NOUVEAU.** Composant serveur, `sticky top-0`, « Quitter » = `<form method="GET">` (jamais un `<Link>` : le préchargement effacerait le cookie) |
+| `src/components/dashboard/versions/version-history.tsx` | **NOUVEAU.** Écran d'historique générique : liste, écarts repliables, restauration confirmée. `<ol data-versions>` pour l'isoler de la nav |
+| `src/components/dashboard/articles/article-historique.tsx` · `pages/page-historique.tsx` | **NOUVEAUX.** Enveloppes clientes qui lient l'action de restauration et les libellés de champs |
+| `src/app/(dashboard)/dashboard/actualites/[id]/historique/page.tsx` · `pages/[id]/historique/page.tsx` | **NOUVEAUX.** `requirePermission("<r>:read")`, bouton « Restaurer » ouvert à `<r>:update` |
+| `src/server/action-kit/create-action.ts` | `permission` accepte désormais `Permission \| null \| ((entree: unknown) => Permission \| null)`, résolue AVANT la vérification de session |
+| `src/server/actions/articles.actions.ts` | `changerStatutArticleAction` : permission résolue (`in_review` → `article:update`), instantané après publication, audit `article.status` (ex-`article.publish`) ; **+ `restaurerVersionArticleAction`** (`article:update`) |
+| `src/server/actions/pages.actions.ts` | idem sur `changerStatutPageAction` (instantané page + sections) ; **+ `restaurerVersionPageAction`** (`page:update`) |
+| `src/server/queries/articles.query.ts` · `pages.query.ts` | `getArticlePublie` / `getPagePublique` : si `previewActif()`, servent le brouillon lu en session |
+| `src/core/use-cases/pages/get-page.ts` | `getPagePubliee` filtre `published_at > now()` → `NOT_FOUND` (§12.4, côté cas d'usage — la RLS des pages ne double pas encore) |
+| `src/components/dashboard/articles/article-editeur.tsx` · `pages/page-action-bar.tsx` · `pages/page-editor.tsx` | Boutons « Soumettre à relecture » (quand `draft` + `<r>:update`), « Prévisualiser » (`<a href="/api/preview?chemin=…">`), « Historique » |
+| `src/lib/dates.ts` | `+ formatDateHeure` (« 20 août 2025 à 14:30 »), fuseau du site |
+| `src/app/(site)/layout.tsx` | `<PreviewBanner />` en tête du flux |
+| `vercel.json` | **NOUVEAU.** Cron quotidien `/api/cron/publish` à 05:00 UTC |
+| `.env.example` | `+ CRON_SECRET` (bloc commenté) |
+
+**Aucune migration.** `content_versions` (0008), sa RLS (0009 : lecture/insertion personnel, suppression admin) et les colonnes `published_at` existaient déjà.
+
+### Recette exécutée (107 mesures, 0 échec)
+
+- `npx tsc --noEmit`, `npx eslint .`, `npm run build` : **0 erreur, 0
+  avertissement**. Les 5 routes nouvelles sortent en `ƒ`.
+- **Couche domaine pure — 43 mesures** (`src/core` compilé en CommonJS, exécuté
+  sous Node avec des doubles en mémoire) : `diffSnapshot` (objets identiques,
+  un champ, `only`, champs ignorés, tableau de chaînes, `null`, snapshot
+  illisible) ; `transitionRequiresPublish` sur les six couples du §12.1 ;
+  `restoreVersionSchema` / `listVersionsSchema` / `pageSnapshotSchema` ;
+  `recordVersion` × 22 → 20 conservées, la plus ancienne portant le n° 3 ;
+  `restoreArticleVersion` remet le contenu, laisse `status` et `publishedAt`,
+  crée la version « Restauration de la version 1 », refuse une version de page
+  (VALIDATION) et une version absente (NOT_FOUND) ; `getPagePubliee` rend
+  NOT_FOUND pour une date future, OK pour une date passée ou nulle.
+- **HTTP + navigateur — 64 mesures** (Chrome piloté en CDP contre `next start`,
+  deux comptes temporaires, un article et une page de test créés puis
+  supprimés, `CRON_SECRET` fourni au serveur, base restaurée) :
+  1. **§12 #1** — l'éditeur voit « Soumettre à relecture » et **ni « Publier »
+     ni « Dépublier »** ; son clic passe l'article « À relire » ; le **rejeu de
+     la Server Action `next-action` réelle, `in_review` substitué par
+     `published`, avec les cookies de l'éditeur → refusé** (FORBIDDEN), l'article
+     reste « À relire » ; l'admin, lui, publie.
+  2. **§12 #2** — publier crée la version 1 (`comment: "Publication"`,
+     `snapshot.title` juste, `created_by` = admin) ; une 2ᵉ publication après
+     modification crée la version 2 ; l'écran d'historique liste les deux,
+     montre l'écart de titre, et **« Restaurer » la version 1 remet le titre en
+     base** en créant une version 3 « Restauration de la version 1 », sans
+     dépublier.
+  3. **§12 #6** — 21 versions posées, une publication de plus → **exactement 20
+     restent**, les deux plus anciennes purgées.
+  4. **§12 #3 / #4** — un anonyme sur l'URL du brouillon **ne voit pas le
+     contenu** (page « introuvable », `noindex` présent) ; `/api/preview` sans
+     session → 401 ; l'admin clique « Prévisualiser » → la page affiche le
+     brouillon, la **bannière « Mode prévisualisation »** est là ; le même appel
+     rejoué en HTTP direct avec les cookies (session + `__prerender_bypass`)
+     → 200 + titre ; **« Quitter » retire la bannière et le cookie**, le
+     brouillon redevient invisible.
+  5. **§12 #5** — un article daté dans le futur **n'apparaît pas** ;
+     `/api/cron/publish` sans en-tête ou avec un mauvais secret → 401 ; avec le
+     bon → 200, l'article échu figure dans `released`, `cms:articles` et
+     `cms:article:<slug>` dans `revalidated` ; passée la date, l'URL répond
+     200 avec le contenu.
+  6. **Pages** — « Prévisualiser » depuis `/dashboard/pages/<id>` redirige vers
+     l'adresse de la page, bannière comprise ; l'éditeur soumet une page à
+     relecture sans pouvoir la publier ; publier une page crée un instantané
+     **qui embarque le tableau des sections** ; l'écran d'historique de la page
+     s'affiche.
+  7. **Divers** — `/api/preview/exit` sans cookie redirige quand même vers `/`
+     (idempotent) ; la bannière n'apparaît jamais pour un anonyme ; un éditeur
+     **consulte** l'historique et voit « Restaurer » (restaurer = modifier).
+- **Nettoyage vérifié** : 1 profil (le super administrateur), **0 ligne dans
+  `content_versions`**, 0 article / 0 page `recette-12*`, journal d'audit
+  purgé (les 3 entrées de boucle locale `actor_id = null` laissées par des
+  exécutions interrompues antérieures ont été retirées à la main, fenêtre et
+  IP bornées), clés `connexion:` de la boucle locale remises à zéro.
+
+### Écarts et décisions, à ne pas « corriger » plus tard
+
+1. **La permission d'une transition est résolue à partir de l'entrée, pas via
+   deux actions.** `createAction.permission` accepte une fonction. Le résolveur
+   ne voit que la CIBLE : il ouvre `in_review` à l'éditeur (`<r>:update`) et
+   exige `<r>:publish` pour tout le reste — y compris un retour en `draft`
+   depuis `in_review`. Arbitrage assumé : la précision totale demanderait de
+   lire l'état courant AVANT la garde de permission.
+2. **L'instantané est pris dans la Server Action, pas dans `set<X>Status`.** Le
+   cas d'usage de transition n'a pas à connaître l'historique. L'échec de
+   l'instantané est journalisé (`console.error`), jamais propagé — la
+   publication est déjà committée. Même discipline que le journal d'audit.
+3. **`article.publish` → `article.status` dans le journal d'audit.** L'action
+   sert maintenant aussi la soumission à relecture ; le verbe est aligné sur
+   celui des pages (`page.status`). Sans conséquence : le journal du Lot 13
+   n'existe pas encore.
+4. **La restauration ne touche ni `status` ni `publishedAt`.** « Remettre le
+   contenu » (§12) = titre, corps, catégorie, couverture, adresse. Dépublier,
+   reprogrammer, redater sont des décisions distinctes avec leur commande et
+   leur permission.
+5. **Le versionnage de PAGE embarque les sections mais la restauration est
+   partielle.** L'instantané contient `{ ...page, sections }` ; `restorePage
+   Version` remet les réglages de page et le contenu/visibilité des sections
+   encore présentes (par id). Recréer une section supprimée lui donnerait un
+   nouvel id et une place incertaine dans un arbre modifié ; réordonner un
+   ensemble dont la composition diffère produit des collisions. L'écran
+   d'historique de la page l'annonce. Le versionnage section par section est un
+   lot de suivi.
+6. **`server/preview/read.ts` vit dans `server/`, PAS `server/queries/`.** Il
+   lit avec `createServerClient` (session) pour franchir la RLS `*_staff_read`.
+   La règle ESLint de `server/queries/**` interdit exactement cet import — et à
+   raison, là-bas. Ici le scope n'est jamais mis en cache : le mode brouillon
+   fait ré-exécuter à chaque requête tout scope `'use cache'` (doc Next.js,
+   « Draft Mode with Cache Components »). `articles.query.ts` / `pages.query.ts`
+   importent ce module, ce que la règle autorise (seuls `clients/server` et
+   `clients/admin` y sont bloqués).
+7. **La liste `/actualites` NE montre PAS les brouillons en prévisualisation.**
+   Seules les FICHES (`/actualites/[slug]`) et les PAGES basculent. Un brouillon
+   se prévisualise par son adresse directe, pas dans un fil « À la une ».
+8. **La publication programmée des PAGES est filtrée au niveau du cas d'usage
+   seulement.** `getPagePubliee` rejette `published_at > now()`. La RLS des
+   pages ne double pas encore la clause (contrairement aux articles, écart
+   nº 12). À ajouter en base au même titre que le versionnage des six autres
+   collections.
+9. **`/api/cron/publish` a un effet limité tant que `cacheComponents` est
+   `false` (Lot 15).** Sans cache entre requêtes, un contenu programmé apparaît
+   de lui-même à sa date. Le handler EXISTE, repère les contenus échus et purge
+   les bonnes étiquettes ; son effet complet viendra avec le cache du Lot 15.
+   La recette du §12 (#5) le montre : il *signale* l'article échu et *revalide*
+   les bonnes étiquettes.
+10. **Un `notFound()` de `(site)` répond 200 (soft-404), et c'est
+    ANTÉRIEUR au Lot 12.** Vérifié sur `main` : `/programmes/<slug-inconnu>`
+    répondait déjà 200 avant ce lot (les 12 pages système ont `force-dynamic`
+    et une lecture async dans le layout). La recette du §12 vérifie donc le
+    COMPORTEMENT — contenu du brouillon absent + page « introuvable » +
+    `noindex` — et non le code HTTP. À traiter au Lot 15/16.
+11. **Les 12 pages système ne se dépublient pas par leur `pages.status`.**
+    Leur fichier de route (`src/app/(site)/a-propos/page.tsx`…) rend son
+    en-tête en dur ; `pages.status` ne gouverne que leurs sections. La
+    prévisualisation d'une page est donc testée sur `/a-propos` **sans la
+    modifier** (redirection + bannière), et le cycle transitions + versions
+    sur une **page de test non-système** créée puis supprimée — les pages
+    système portent encore des « [À COMPLÉTER] » de gabarit (Lots 8D/9) qui
+    bloqueraient leur publication.
+
+### Points de vigilance légués
+
+- **`CRON_SECRET` doit être renseigné dans Vercel** (trois environnements) pour
+  que `/api/cron/publish` fonctionne. Sans valeur, le handler renvoie 500 —
+  fail closed voulu. Le planning est dans `vercel.json` (05:00 UTC quotidien).
+- **`recordVersion` est appelé après la transition, dans le handler.** Le jour
+  où un autre chemin publie un contenu (import, script), il ne créera PAS
+  d'instantané. Le seul chemin actuel est la Server Action, et c'est voulu.
+- **Le versionnage n'est câblé que pour `article` et `page`.** `VERSIONED_
+  ENTITY_TYPES` est la liste à étendre ; la table et les ports sont déjà
+  génériques. Les six autres collections héritent des transitions (un éditeur
+  peut soumettre à relecture partout) mais n'ont ni instantané ni écran
+  d'historique.
+- **`draftMode()` dans le layout `(site)` rend TOUTES les pages `(site)`
+  dépendantes de la requête** — sans effet ici (elles portaient déjà
+  `force-dynamic`), mais à garder en tête au Lot 15 quand le cache s'activera.
+
+---
+
+## Ce qu'a livré le Lot 13 (détail)
+
+**Objectif du §13 du Rapport 2 : gérer les comptes, tracer les actions.** Écran
+`/dashboard/utilisateurs` (annuaire + invitation + rôle/état/suppression), écran
+`/dashboard/journal` (lecture seule, filtres, différentiel), rétention 180 jours
+purgée par cron.
+
+### Fichiers
+
+| Fichier | Rôle |
+|---|---|
+| `src/core/cms/entities/user-account.ts` | **NOUVEAU.** `UserAccount` (vue annuaire, distincte d'`Actor`), `estInvitationEnAttente` (= `lastSeenAt === null`) |
+| `src/core/cms/entities/audit-entry.ts` | **NOUVEAU.** `AuditEntry` (`diff: unknown`), `AuditFilters`, `AUDIT_RETENTION_DAYS = 180`, `AUDIT_ACTION_LABELS` / `AUDIT_ENTITY_TYPE_LABELS` **écrits en toutes lettres**, `libelleAction` (repli « objet — verbe »), `libelleTypeEntite`, `estEvenementAuth` |
+| `src/core/cms/ports/user-account.port.ts` | **NOUVEAU.** `UserAccountReadPort` (`list`, `findById`, `countActiveSuperAdmins`) / `WritePort` (`invite`, `setRole`, `setActive`, `remove`) / `Deps` |
+| `src/core/cms/ports/audit-log.port.ts` | **NOUVEAU.** `AuditLogReadPort` (`list(filters, limit)`). Aucun port d'écriture — le journal est alimenté par `service_role` |
+| `src/core/cms/schemas/user-account.schema.ts` | **NOUVEAU.** `inviteUserSchema` (**trim/minuscule AVANT `z.email`** via `.pipe`), `changeUserRoleSchema`, `setUserActiveSchema`, `userIdSchema` |
+| `src/core/cms/schemas/audit-log.schema.ts` | **NOUVEAU.** `auditFiltersSchema` — chaque champ `.optional().catch(undefined)` : assainit les paramètres d'URL, ne rejette jamais |
+| `src/core/use-cases/users/guards.ts` | **NOUVEAU.** `refuseSiDernierSuperAdmin(read, cible)` — reproduit la logique du trigger (compte les AUTRES super_admin actifs), message = **formule exacte de la base** + « Nommez d'abord un autre super administrateur. » |
+| `src/core/use-cases/users/{list-user-accounts,invite-user,change-user-role,set-user-active,delete-user}.ts` | **NOUVEAUX.** Garde « soi-même » (rôle / désactivation / suppression → VALIDATION), garde « dernier super_admin » (→ CONFLICT), no-op refusé (« a déjà ce rôle / est déjà actif »). `changeUserRole` renvoie `{ account, previousRole }` pour le différentiel `{ de, vers }` |
+| `src/core/use-cases/audit/list-audit-entries.ts` | **NOUVEAU.** Lecture seule bornée |
+| `src/infrastructure/supabase/mappers/{user-account,audit-entry}.mapper.ts` | **NOUVEAUX.** Rôle revalidé (`isUserRole`, repli `editor`) ; `ip` `inet` → chaîne ; `diff` traverse en `unknown` |
+| `src/infrastructure/supabase/repositories/user-account.repository.ts` | **NOUVEAU.** **DEUX clients** : session (RLS `profiles_admin_read` / `profiles_super_admin_update`, reçoit ADB02 verbatim) + admin (`inviteUserByEmail` puis pose le rôle ; `deleteUser`). `deleteUser` échoué → CONFLICT explicite (GoTrue avale le message du trigger — constat Lot 1) |
+| `src/infrastructure/supabase/repositories/audit-log.repository.ts` | **NOUVEAU.** `select("*")` + `.eq`/`.gte`/`.lte` selon les filtres ; bornes de période interprétées dans le **fuseau du site** (`DECALAGE_SITE`) |
+| `src/server/deps/{user-account,audit-log}.deps.ts` | **NOUVEAUX.** Non importables depuis `server/queries/` (tirent `clients/server` + `clients/admin`) |
+| `src/server/actions/users.actions.ts` | **NOUVEAU.** `inviterUtilisateurAction` (`user:create`), `changerRoleUtilisateurAction` / `changerActivationUtilisateurAction` (`user:update`), `supprimerUtilisateurAction` (`user:delete`) — chacune avec `audit.diff` dédié |
+| `src/server/action-kit/create-action.ts` | `audit` gagne `diff?: (result, input) => unknown` ; **par défaut, l'entrée validée est enregistrée** comme différentiel, aplatie par `enJsonSur` (JSON.stringify→parse, `null` en dernier recours) |
+| `src/server/actions/auth.actions.ts` | `signInAction` écrit `last_seen_at` après connexion réussie (best effort, `profiles_self_update` — le rôle ne change pas) |
+| `src/components/dashboard/users/users-client.tsx` | **NOUVEAU.** `<DataTable>` (avatar, nom+e-mail, rôle, état, dernière connexion), menu d'action **seulement si `user:update`/`user:delete`**, entrées « soi-même » désactivées avec leur motif |
+| `src/components/dashboard/users/{invite-user-modal,change-role-dialog}.tsx` | **NOUVEAUX.** Invitation via `<SchemaForm>` (champ `select` rôle) ; boîte de changement de rôle montée avec `key={compte.id}` (pas de `useEffect` de resync) |
+| `src/components/dashboard/journal/journal-client.tsx` | **NOUVEAU.** Filtres → URL (`router.push`), cartes `<ol data-journal><li>`, différentiel JSON dans un `<pre class="overflow-x-auto">` |
+| `src/app/(dashboard)/dashboard/utilisateurs/page.tsx` · `journal/page.tsx` | **NOUVEAUX.** `requirePermission("user:read")` / `"audit:read"` ; avatars résolus en une requête ; filtres du journal parsés par `auditFiltersSchema` |
+| `src/app/api/cron/purge/route.ts` | **NOUVEAU.** `GET` — `Authorization: Bearer $CRON_SECRET` (500 si absent, 401 sinon), `DELETE audit_logs WHERE created_at < now() - 180 j` via `service_role`, renvoie `{ deleted, retentionDays, olderThan }` |
+| `src/infrastructure/supabase/clients/admin.ts` | Liste des usages autorisés portée à **6** (+ purge de rétention) |
+| `vercel.json` | 2ᵉ cron : `/api/cron/purge` à 04:30 UTC |
+
+**Aucune migration.** `audit_logs` (0008), sa RLS (0009 : `audit_logs_admin_read` =
+`app_can_publish()`), `profiles.last_seen_at`, le trigger `guard_last_super_admin`
+(0010) et les permissions `user:*` / `audit:read` (matrice) existaient déjà.
+Les entrées de navigation « Utilisateurs » et « Journal d'activité » étaient
+déclarées depuis le Lot 5.
+
+### Recette exécutée (102 mesures, 0 échec)
+
+- `npx tsc --noEmit`, `npx eslint .`, `npm run build` : **0 erreur, 0
+  avertissement**. `/dashboard/utilisateurs`, `/dashboard/journal`,
+  `/api/cron/purge` sortent en `ƒ`.
+- **Couche domaine pure — 55 mesures** (`src/core` compilé en CommonJS, doubles
+  en mémoire) : `estInvitationEnAttente` ; `AUDIT_RETENTION_DAYS = 180`,
+  `libelleAction` / `libelleTypeEntite` (connus + repli), `estEvenementAuth` ;
+  `inviteUserSchema` (normalise `  Jean.Dupont@Exemple.ORG ` → minuscule/trim,
+  refuse e-mail/nom/rôle invalides), `changeUserRoleSchema` / `setUserActiveSchema`
+  / `userIdSchema` ; `auditFiltersSchema` (actorId illisible → `undefined`, date
+  mal formée → `undefined`, valides conservées) ; `refuseSiDernierSuperAdmin`
+  (non-super_admin → rien, un autre actif → rien, **dernier actif → CONFLICT**
+  avec « Impossible : ce compte est le dernier super administrateur actif. »,
+  cible inactive seule → CONFLICT) ; `changeUserRole` (soi → VALIDATION, même
+  rôle → VALIDATION, cible absente → NOT_FOUND, promotion OK avec
+  `previousRole`, **rétrograder le dernier → CONFLICT**) ; `setUserActive` (se
+  désactiver → VALIDATION, déjà dans l'état → VALIDATION, désactiver le dernier
+  → CONFLICT) ; `deleteUser` (soi → VALIDATION, absent → NOT_FOUND, OK renvoie
+  l'e-mail, **dernier → CONFLICT** — garde AVANT l'appel API) ;
+  `listUserAccounts` / `listAuditEntries` (sans filtre, filtré, borné).
+- **HTTP + navigateur — 47 mesures** (Chrome piloté en CDP contre `next start`,
+  4 comptes temporaires — super_admin / admin / éditeur / cible —, `CRON_SECRET`
+  fourni au serveur, base restaurée) :
+  1. **§13 #6** — l'éditeur sur `/dashboard/journal` et `/dashboard/utilisateurs`
+     est **renvoyé au tableau de bord** (`?erreur=droits-insuffisants`) ; sa
+     barre latérale ne montre ni « Journal d'activité » ni « Utilisateurs » ;
+     **rejeu des Server Actions `next-action` réelles (désactivation, changement
+     de rôle) avec ses cookies → FORBIDDEN**.
+  2. **§13 #2** — l'admin accède à `/dashboard/utilisateurs` (il a `user:read`)
+     mais **aucune ligne n'offre de menu d'action** (`user:update` / `user:delete`
+     absents), « Changer le rôle » n'est nulle part dans la page ; il voit quand
+     même les entrées « Utilisateurs » et « Journal d'activité » ; **rejeu de
+     « changer le rôle » et de « désactiver » avec ses cookies → FORBIDDEN**.
+  3. **§13.2** — rejeu de « changer le rôle » ciblant SON propre compte →
+     VALIDATION « propre rôle » ; rejeu de « désactiver » ciblant SON compte →
+     VALIDATION « propre compte » ; le super_admin reste super_admin et actif.
+  4. **§13 #4** — l'éditeur a une session (`/dashboard` → 200) ; une Server
+     Action valide (cookies super_admin) le désactive en base ; **avec la MÊME
+     session, `/dashboard` redirige désormais vers `/connexion`** (`getCurrentActor`
+     relit `is_active`).
+  5. **§13.1** — la connexion écrit `last_seen_at` (récent) ; l'invitation via
+     l'UI (rôle *admin*, ≠ défaut) **atteint le mailer** (message dédié
+     « L'invitation n'a pas pu être envoyée », **jamais** un refus de droits) ;
+     un éditeur qui rejoue l'invitation → FORBIDDEN (`user:create` absent), un
+     admin non ; **inviter une adresse déjà inscrite → « un compte existe
+     déjà »**. *L'envoi réel n'a pas abouti : SMTP intégré du projet hébergé
+     plafonné (`429 over_email_send_rate_limit`) — voir écart.*
+  6. **§13 #5** — la désactivation figure au journal avec `actor_id`, un
+     horodatage récent et un différentiel `{ actif: bool }` ; toutes les entrées
+     récentes portent `entity_type` + `created_at` ; au moins une `user.*` et
+     une `auth.login`.
+  7. **§13.3** — `/dashboard/journal?action=user.activation` : les cartes
+     affichées sont toutes des « Activation / désactivation » (filtre EN BASE) ;
+     `?auteur=<super_admin>` : des entrées, toutes de lui.
+  8. **§13 #7** — à **390 px** : aucun débordement horizontal de page ; les
+     entrées sont des `<li>` sous `[data-journal]` ; déplier un différentiel
+     affiche un `<pre>` en `overflow-x: auto` **sans faire déborder la page**.
+  9. **`/api/cron/purge`** — sans en-tête → 401 ; mauvais secret → 401 ; bon
+     secret → 200 `{ retentionDays: 180, deleted: 0 }` (aucune entrée n'a plus
+     de 180 jours sur ce projet récent).
+- **Nettoyage vérifié** : **1 seul profil** (`yayacou5556@gmail.com`,
+  super_admin, actif), **0 résidu `recette-13*`**, **0 entrée d'audit** dans la
+  fenêtre de la recette (les entrées produites — `user.activation`,
+  `user.role_changed`, `auth.login` des comptes de test — ont été purgées, bornage
+  strict par identifiant/adresse de compte de test), clés `connexion:` de la
+  boucle locale remises à zéro.
+
+### Écarts et décisions, à ne pas « corriger » plus tard
+
+1. **`createAction` écrit un `diff` pour TOUTES les mutations.** Par défaut =
+   l'entrée validée (aplatie en JSON sûr). C'est la liste des champs modifiés
+   pour la quasi-totalité des actions. `audit.diff` n'est fourni que pour un
+   différentiel plus parlant : `{ de, vers }` d'un changement de rôle,
+   `{ email, nom, role }` d'une invitation. Additif — la colonne `diff` était
+   `null` sur toutes les entrées avant ce lot.
+2. **Changement de rôle / activation / suppression sont `super_admin` SEUL**
+   (`user:update`, `user:delete` — absents de la matrice `admin`), doublés par
+   `profiles_super_admin_update/delete` (RLS) et `guard_last_super_admin`
+   (trigger). Le §13.1 ne marque explicitement que « rôle » et « supprimer »
+   comme réservés ; « activer/désactiver » l'est aussi, car c'est `user:update`.
+3. **La garde « dernier super_admin » n'est déclenchable QUE côté base.** Le
+   seul acteur qui pourrait rétrograder/désactiver/supprimer le dernier
+   super_admin est ce compte lui-même — bloqué d'abord par la garde
+   « soi-même ». Un second super_admin qui ferait l'opération signifie qu'il
+   n'est PAS le dernier. La recette couvre : (a) `refuseSiDernierSuperAdmin` +
+   les 3 cas d'usage à la couche domaine (CONFLICT, message = formule de la
+   base) ; (b) le trigger `guard_last_super_admin` en place depuis 0010
+   (recetté Lot 1) ; (c) `mapPostgrestError` transmet les `ADB*` verbatim
+   (recetté Lots 1 / 8x / 12 pour ADB01/03/06/07). Un tir live d'ADB02 exigerait
+   un état « zéro autre super_admin actif », impossible à créer sans risque de
+   blocage total sur la base **hébergée** (aucune transaction annulable, aucun
+   `psql` — Docker local éteint, projet lié à distance).
+4. **Le pré-contrôle applicatif du dernier super_admin est surtout critique pour
+   la SUPPRESSION.** `auth.admin.deleteUser` (GoTrue) renvoie un
+   « 500 Database error deleting user » opaque : sans le compte préalable des
+   super_admin actifs, l'utilisateur verrait une erreur technique là où la base
+   dit une phrase claire. Pour rôle et activation, PostgREST transmet déjà
+   ADB02 intact — le pré-contrôle n'y sert qu'à éviter un aller-retour.
+5. **Le nom de l'auteur n'est pas porté par `AuditEntry`.** L'écran le résout
+   contre l'annuaire déjà chargé (patron de `getMediaByIds`), pas par une
+   jointure PostgREST par ligne (fragile sur les ressources imbriquées). Un
+   `actor_id` à `null` (compte supprimé) → « Compte supprimé » ; un journal sans
+   auteur mais daté reste un journal.
+6. **Les options des filtres du journal ne viennent PAS d'une requête
+   `DISTINCT`.** « Auteur » = l'annuaire complet ; « Type » / « Action » = les
+   libellés connus d'`audit-entry.ts`. Une requête de valeurs distinctes sur
+   `audit_logs` serait un balayage de plus à chaque affichage, pour une liste
+   qui bouge peu.
+7. **`server/preview/read.ts` n'est PAS le seul module `server/` hors
+   `server/queries/`** : `deps/user-account.deps.ts` l'est aussi (il tire
+   `clients/admin`). La règle ESLint ne vise que `server/queries/**` — correct,
+   l'annuaire n'a aucune lecture publique.
+8. **L'e-mail d'invitation n'a pas pu être vérifié de bout en bout.** Le SMTP
+   intégré du projet Supabase hébergé plafonne à quelques envois/heure
+   (`429 over_email_send_rate_limit`) et ne délivre qu'aux membres du projet.
+   Vérifiés malgré ça : la garde de permission (éditeur → FORBIDDEN, admin non),
+   la détection de doublon (« un compte existe déjà »), et que l'action franchit
+   permission + validation + use-case pour **échouer au mailer** (message
+   dédié). Non vérifiés live : l'écriture du rôle sur le profil neuf et l'entrée
+   `user.invite` — mais ils empruntent le MÊME mécanisme que
+   `user.role_changed` / `user.activation`, eux vérifiés (différentiel, auteur,
+   entité). Un environnement avec SMTP applicatif (Resend) ou Supabase local
+   lèverait la limite.
+9. **`last_seen_at` = dernière CONNEXION, pas dernière activité.** Écrit une
+   fois par `signInAction`, pas à chaque requête (qui serait une écriture sur un
+   chemin GET). « Invitation en attente » = `last_seen_at IS NULL`.
+
+### Points de vigilance légués
+
+- **`CRON_SECRET` doit être renseigné dans Vercel** — désormais pour DEUX
+  routes (`/api/cron/publish` 05:00 UTC, `/api/cron/purge` 04:30 UTC). Sans
+  valeur, les deux renvoient 500 (fail closed).
+- **La purge de rétention utilise `createAdminClient`** (6ᵉ usage). Le jour où
+  une politique de `delete` bornée serait ajoutée à `audit_logs`, ce handler
+  pourrait repasser par le client de session — mais un journal que
+  l'application peut effacer avec les droits d'un utilisateur ne prouve plus
+  rien : à laisser tel quel.
+- **Les entrées d'audit accumulées par les recettes des lots précédents** (voir
+  les notes « à purger au Lot 13 » plus haut) : la purge par rétention ne les
+  touchera qu'après 180 jours. Elles sont inertes (elles n'apparaissent au
+  journal que si l'on remonte assez loin) ; un nettoyage manuel borné reste
+  possible si l'écran devient bruyant.
+- **`AUDIT_ACTION_LABELS` / `AUDIT_ENTITY_TYPE_LABELS` sont écrits à la main.**
+  Une action journalisée sans libellé s'affiche via le repli (« objet —
+  verbe ») — lisible, mais moins net. À compléter quand une nouvelle action
+  `createAction` apparaît (Lot 14 : `submission.*`).
 
 ---
 

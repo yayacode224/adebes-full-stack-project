@@ -17,17 +17,21 @@ import { requireServiceRoleKey, requireSupabaseEnv } from "./env";
  *  les profils. La seule protection est le code qui l'entoure.
  *
  * ---------------------------------------------------------------------------
- * LES QUATRE SEULS USAGES AUTORISÉS (§3.1 du Rapport 2)
+ * LES USAGES AUTORISÉS (§3.1 du Rapport 2, complété aux Lots 13 et 16)
  * ---------------------------------------------------------------------------
  *   1. Invitation d'un utilisateur   (`auth.admin.inviteUserByEmail`)
  *   2. Suppression d'un utilisateur  (`auth.admin.deleteUser`)
  *   3. Écriture du journal d'audit   (aucune politique d'insert n'existe —
  *      un journal que l'application peut modifier ne prouve rien)
  *   4. Script de seed
+ *   5. Limitation de débit           (compteurs en base, Lot 16 — consigné
+ *      dans docs/REPRISE-CONTEXTE.md)
+ *   6. Purge de rétention du journal (`/api/cron/purge`, Lot 13 — `audit_logs`
+ *      n'a aucune politique de `delete` ; même nature que l'usage nº 3)
  *
- * Cette liste ne s'étend pas sans décision explicite. Si vous avez besoin de
- * ce client pour autre chose, la vraie question est presque toujours
- * « quelle politique RLS manque-t-il ? ».
+ * Cette liste ne s'étend pas sans décision explicite ET sa trace écrite. Si
+ * vous avez besoin de ce client pour autre chose, la vraie question est presque
+ * toujours « quelle politique RLS manque-t-il ? ».
  *
  * ---------------------------------------------------------------------------
  * `import "server-only"` EN PREMIÈRE LIGNE

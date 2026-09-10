@@ -304,6 +304,7 @@ export function PageEditor({
 
       <PageActionBar
         page={page}
+        peutModifier={peutModifierPage}
         peutPublier={peutPublierPage}
         peutSupprimer={peutSupprimerPage}
       />

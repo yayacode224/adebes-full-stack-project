@@ -1,3 +1,4 @@
+import { PreviewBanner } from "@/components/layout/preview-banner";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { StickyMobileActionBar } from "@/components/layout/sticky-mobile-action-bar";
@@ -70,6 +71,13 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
       <style id="adebes-theme" dangerouslySetInnerHTML={{ __html: themeCss }} />
 
       <div className="flex min-h-dvh flex-col pb-action-bar lg:pb-0">
+        {/*
+          §12.3 — bannière de prévisualisation. Rendue seulement quand le mode
+          brouillon est actif ; `null` sinon. Premier élément du flux :
+          `sticky top-0`, elle coiffe l'en-tête sans le recouvrir.
+        */}
+        <PreviewBanner />
+
         {/*
           Lien d'évitement : première cible du clavier, il permet de sauter la
           navigation pour atteindre le contenu. Il vit ici plutôt qu'à la racine

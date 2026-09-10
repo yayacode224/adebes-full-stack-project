@@ -61,6 +61,23 @@ export function formatDate(iso: string): string {
   }).format(new Date(iso));
 }
 
+/**
+ * Date ET heure : « 20 août 2025 à 14:30 ».
+ *
+ * Employée là où l'instant précis compte — l'historique des versions, le
+ * journal. Toujours dans le fuseau éditorial du site, comme `formatDate`.
+ */
+export function formatDateHeure(iso: string): string {
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: FUSEAU_SITE,
+  }).format(new Date(iso));
+}
+
 /** Date courte : « 20 août 2025 » → « 20 août 2025 » en abrégé (« 20 août »). */
 export function formatDateCourte(iso: string): string {
   return new Intl.DateTimeFormat("fr-FR", {

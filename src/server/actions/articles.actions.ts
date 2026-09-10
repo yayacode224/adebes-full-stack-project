@@ -7,13 +7,17 @@ import {
   setArticleStatusSchema,
   updateArticleSchema,
 } from "@/core/cms/schemas/article.schema";
+import { restoreVersionSchema } from "@/core/cms/schemas/content-version.schema";
 import { createArticle } from "@/core/use-cases/articles/create-article";
 import { deleteArticle } from "@/core/use-cases/articles/delete-article";
 import { setArticleStatus } from "@/core/use-cases/articles/set-article-status";
 import { updateArticle } from "@/core/use-cases/articles/update-article";
+import { recordVersion } from "@/core/use-cases/versions/record-version";
+import { restoreArticleVersion } from "@/core/use-cases/versions/restore-article-version";
 
 import { createAction } from "../action-kit/create-action";
 import { articleDeps } from "../deps/article.deps";
+import { contentVersionDeps } from "../deps/content-version.deps";
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -139,30 +143,105 @@ export const mettreAJourArticleAction = createAction<
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 /**
- * Changer l'état éditorial.
+ * Changer l'état éditorial (§12.1 du Rapport 2).
  *
- * `article:publish` — absent de la liste `editor` (§9 du Rapport 1). La base
- * dit la même chose avec le trigger `articles_guard_publish` (ADB01) : un
- * éditeur qui appellerait cette action par un POST direct serait refusé deux
- * fois.
+ * ---------------------------------------------------------------------------
+ * LA PERMISSION DÉPEND DE LA TRANSITION DEMANDÉE
+ * ---------------------------------------------------------------------------
+ *   * `draft → in_review` — un éditeur soumet son texte à relecture. C'est un
+ *     geste de rédaction : `article:update` suffit.
+ *   * toute autre cible (`published`, `archived`, retour en `draft`) —
+ *     `article:publish`, absent de la liste `editor` (§9 du Rapport 1), et
+ *     doublé en base par le trigger `articles_guard_publish` (ADB01).
  *
- * Une seule action pour les quatre transitions plutôt qu'une par état : trois
- * actions identiques à un littéral près auraient été trois occasions d'oublier
- * une étiquette de cache.
+ * Le résolveur ne voit que la CIBLE, pas l'état de départ : il ouvre donc à
+ * l'éditeur la seule cible « À relire », et exige `article:publish` pour tout
+ * le reste. Un éditeur qui voudrait retirer sa propre soumission repasse par un
+ * administrateur — arbitrage assumé, la précision totale demanderait de lire
+ * l'état courant avant la garde de permission.
+ *
+ * ---------------------------------------------------------------------------
+ * PUBLIER = UN INSTANTANÉ DE VERSION (§12.2)
+ * ---------------------------------------------------------------------------
+ * Après une transition RÉUSSIE vers `published`, le handler enregistre un
+ * instantané complet dans `content_versions`, puis purge au-delà de 20. Cet
+ * enregistrement ne peut jamais faire échouer la publication : elle est déjà
+ * committée. Une panne de l'instantané est journalisée, pas propagée — même
+ * discipline que le journal d'audit.
+ *
+ * Une seule action pour toutes les transitions plutôt qu'une par état : autant
+ * d'occasions en moins d'oublier une étiquette de cache.
  */
 export const changerStatutArticleAction = createAction<
   typeof setArticleStatusSchema,
   Article
 >({
-  permission: "article:publish",
+  permission: (entree) =>
+    (entree as { status?: string } | null)?.status === "in_review"
+      ? "article:update"
+      : "article:publish",
   input: setArticleStatusSchema,
   audit: {
-    action: "article.publish",
+    action: "article.status",
     entityType: "article",
     entityId: (article) => article.id,
   },
   invalidates: (article) => etiquettes(article.slug),
-  handler: async ({ input }) => setArticleStatus(await articleDeps(), input),
+  handler: async ({ input, actor }) => {
+    const resultat = await setArticleStatus(await articleDeps(), input);
+
+    if (resultat.ok && resultat.value.status === "published") {
+      try {
+        await recordVersion(await contentVersionDeps(), {
+          entityType: "article",
+          entityId: resultat.value.id,
+          snapshot: resultat.value,
+          comment: "Publication",
+          createdBy: actor?.id ?? null,
+        });
+      } catch (erreur) {
+        console.error(
+          "[ADEBES] Instantané de version impossible après publication d'un article",
+          erreur,
+        );
+      }
+    }
+
+    return resultat;
+  },
+});
+
+/**
+ * Restaurer un article dans l'état d'une version antérieure (§12.2).
+ *
+ * `article:update` — restaurer un contenu, c'est le modifier ; ce n'est ni
+ * publier ni dépublier (`restoreArticleVersion` laisse `status` et
+ * `publishedAt` intacts). Un éditeur peut donc récupérer un texte qu'il a
+ * abîmé, sur un article même publié, sans jamais toucher à sa mise en ligne.
+ *
+ * La restauration produit elle-même un nouvel instantané : elle est réversible.
+ */
+export const restaurerVersionArticleAction = createAction<
+  typeof restoreVersionSchema,
+  Article
+>({
+  permission: "article:update",
+  input: restoreVersionSchema,
+  audit: {
+    action: "article.restore_version",
+    entityType: "article",
+    entityId: (article) => article.id,
+  },
+  invalidates: (article) => etiquettes(article.slug),
+  handler: async ({ input, actor }) =>
+    restoreArticleVersion(
+      {
+        versions: await contentVersionDeps(),
+        articles: await articleDeps(),
+      },
+      input.versionId,
+      actor?.id ?? null,
+    ),
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════

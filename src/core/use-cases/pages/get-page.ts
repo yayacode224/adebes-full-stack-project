@@ -42,5 +42,22 @@ export async function getPagePubliee(
   if (!page) {
     return err(new AppError("NOT_FOUND", "Cette page n'existe pas."));
   }
+
+  /*
+    §12.4 — publication programmée. Une page publiée dont la date de parution
+    est dans le futur n'est pas encore visible. La condition est portée ici,
+    par le cas d'usage public, comme pour les articles (`getPublishedArticle
+    BySlug`) : c'est une règle de publication, pas un filtre d'affichage. La
+    prévisualisation, elle, passe par `lirePagePrevisualisation` et ne
+    l'applique pas.
+
+    ⚠️  Contrairement aux articles, la RLS des pages ne double pas encore cette
+    clause — elle ne filtre que `status = 'published'`. Le doublon en base est
+    un suivi, au même titre que le versionnage des six autres collections.
+  */
+  if (page.publishedAt && Date.parse(page.publishedAt) > Date.now()) {
+    return err(new AppError("NOT_FOUND", "Cette page n'existe pas."));
+  }
+
   return ok(page);
 }

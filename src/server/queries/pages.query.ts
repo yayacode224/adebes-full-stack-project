@@ -8,6 +8,8 @@ import { getPagePubliee } from "@/core/use-cases/pages/get-page";
 import { createPublicClient } from "@/infrastructure/supabase/clients/public";
 import { SupabasePageRepository } from "@/infrastructure/supabase/repositories/page.repository";
 
+import { lirePagePrevisualisation, previewActif } from "../preview/read";
+
 /**
  * ═══════════════════════════════════════════════════════════════════════════
  *  LECTURES PUBLIQUES DES PAGES
@@ -85,6 +87,14 @@ function portPublic(): PageReadPort {
  */
 export const getPagePublique = cache(
   async (route: string): Promise<PageWithSections | null> => {
+    // §12.3 : en prévisualisation, on sert la page telle quelle — brouillon ou
+    // programmée —, lue avec une session de personnel. Sections masquées
+    // exclues quand même : la prévisualisation montre ce que publier
+    // produirait.
+    if (await previewActif()) {
+      return lirePagePrevisualisation(route);
+    }
+
     const resultat = await getPagePubliee(portPublic(), route);
     if (resultat.ok) return resultat.value;
 

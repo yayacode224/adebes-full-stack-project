@@ -8,6 +8,7 @@ import { can } from "@/core/rbac/policy";
 import type { Actor } from "@/core/rbac/roles";
 import { AppError, toAppError } from "@/core/shared/errors";
 import type { Result } from "@/core/shared/result";
+import type { Json } from "@/infrastructure/supabase/database.types";
 
 import { getCurrentActor } from "../dal/session";
 import { actionOk, toActionResult, type ActionResult } from "./action-result";
@@ -52,8 +53,19 @@ export function createAction<TInput extends z.ZodType, TOutput>(config: {
    * `null` signifie « action volontairement publique » — les formulaires de
    * contact et de bénévolat du site. Ce n'est pas un raccourci pour « je
    * verrai plus tard » : une action publique DOIT porter une `rateLimit`.
+   *
+   * ---------------------------------------------------------------------------
+   * UNE FONCTION QUAND LA PERMISSION DÉPEND DE L'ENTRÉE (§12.1 du Rapport 2)
+   * ---------------------------------------------------------------------------
+   * Le changement d'état éditorial est le seul cas : `draft → in_review` est
+   * ouvert à l'éditeur (`<resource>:update`), toute autre transition exige
+   * `<resource>:publish`. La fonction reçoit l'entrée BRUTE — non encore
+   * validée, l'étape de permission précédant celle de validation. Elle doit
+   * donc être défensive et, au moindre doute, exiger la permission la plus
+   * forte : un appelant qui triche sur la forme se verra de toute façon
+   * refuser à l'étape 4.
    */
-  permission: Permission | null;
+  permission: Permission | null | ((entree: unknown) => Permission | null);
 
   /** Schéma de validation. Rejoué côté serveur, jamais délégué au client. */
   input: TInput;
@@ -66,6 +78,20 @@ export function createAction<TInput extends z.ZodType, TOutput>(config: {
     action: string;
     entityType: string;
     entityId?: (result: TOutput) => string | undefined;
+    /**
+     * Différentiel des champs modifiés, affiché replié dans l'écran Journal
+     * (§13.3 du Rapport 2).
+     *
+     * Par défaut, l'entrée VALIDÉE de l'action est enregistrée telle quelle :
+     * pour la quasi-totalité des mutations, la charge utile EST la liste des
+     * champs changés et leur nouvelle valeur. Une action ne fournit ce
+     * résolveur que si elle veut un différentiel plus parlant — typiquement
+     * `{ de, vers }` pour un changement de rôle, que l'entrée seule ne dit pas.
+     *
+     * Le résultat est aplati en JSON sérialisable avant écriture : une `Date`,
+     * une fonction ou un `File` qui s'y glisserait ne casse pas l'insertion.
+     */
+    diff?: (result: TOutput, input: z.infer<TInput>) => unknown;
   };
 
   /** Limitation de débit — obligatoire en pratique si `permission` est `null`. */
@@ -91,12 +117,20 @@ export function createAction<TInput extends z.ZodType, TOutput>(config: {
         if (refus) return toActionResult(refus);
       }
 
+      // La permission peut dépendre de l'entrée (changement d'état éditorial) :
+      // on la résout AVANT la vérification de session, à partir de la charge
+      // utile brute.
+      const permissionRequise =
+        typeof config.permission === "function"
+          ? config.permission(entree)
+          : config.permission;
+
       // ---------------------------------------------------------------- 2 ---
       // Session. `getCurrentActor` est mémoïsé : cet appel ne coûte rien si la
       // page a déjà identifié l'utilisateur.
       const actor = await getCurrentActor();
 
-      if (config.permission !== null && !actor) {
+      if (permissionRequise !== null && !actor) {
         return toActionResult(
           new AppError(
             "UNAUTHENTICATED",
@@ -107,7 +141,7 @@ export function createAction<TInput extends z.ZodType, TOutput>(config: {
 
       // ---------------------------------------------------------------- 3 ---
       // Permission. Jamais un test de rôle (décision D6).
-      if (config.permission !== null && !can(actor, config.permission)) {
+      if (permissionRequise !== null && !can(actor, permissionRequise)) {
         return toActionResult(
           new AppError(
             "FORBIDDEN",
@@ -143,11 +177,16 @@ export function createAction<TInput extends z.ZodType, TOutput>(config: {
       // à l'utilisateur qu'elle n'a pas eu lieu.
       if (config.audit && actor) {
         try {
+          const brut = config.audit.diff
+            ? config.audit.diff(resultat.value, donnees)
+            : donnees;
+
           await writeAuditLog({
             actorId: actor.id,
             action: config.audit.action,
             entityType: config.audit.entityType,
             entityId: config.audit.entityId?.(resultat.value),
+            diff: enJsonSur(brut),
           });
         } catch (erreur) {
           console.error("[ADEBES] Écriture du journal d'audit impossible", erreur);
@@ -183,6 +222,24 @@ export function createAction<TInput extends z.ZodType, TOutput>(config: {
       return toActionResult(appError);
     }
   };
+}
+
+/**
+ * Aplatit une valeur quelconque en JSON sérialisable, pour la colonne `diff`
+ * (JSONB) du journal d'audit.
+ *
+ * `JSON.stringify` puis `JSON.parse` élimine ce qui ne survit pas à la
+ * sérialisation (`Date`, fonction, `File`, référence circulaire) : le journal
+ * ne doit jamais faire échouer une mutation déjà committée. En dernier
+ * recours, `null` — une entrée sans différentiel vaut mieux qu'une action
+ * refusée.
+ */
+function enJsonSur(valeur: unknown): Json {
+  try {
+    return JSON.parse(JSON.stringify(valeur ?? null));
+  } catch {
+    return null;
+  }
 }
 
 /**
